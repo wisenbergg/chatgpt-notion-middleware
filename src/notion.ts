@@ -47,6 +47,127 @@ function isAlreadyNotionProperty(v: any): boolean {
 }
 
 // Heuristic mapping for simple string/number/bool properties.
+// Helper to get database schema with properties
+async function getDatabaseSchema(databaseId: string): Promise<Record<string, any>> {
+  const database: any = await getNotionClient().databases.retrieve({ 
+    database_id: extractNotionId(databaseId)! 
+  });
+  
+  // In API 2025-09-03, properties are in data_sources
+  if (database.data_sources && database.data_sources.length > 0) {
+    const dataSourceId = extractNotionId(database.data_sources[0].id);
+    const dataSource: any = await (getNotionClient() as any).request({
+      method: 'get',
+      path: `data_sources/${dataSourceId}`
+    });
+    return dataSource.properties || {};
+  }
+  
+  return database.properties || {};
+}
+
+// Schema-aware property conversion
+function toNotionPropertiesWithSchema(
+  input: Record<string, any> = {}, 
+  schema: Record<string, any> = {}
+): Record<string, any> {
+  const props: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(input)) {
+    if (isAlreadyNotionProperty(value)) {
+      props[key] = value;
+      continue;
+    }
+
+    const propertySchema = schema[key];
+    const propertyType = propertySchema?.type;
+
+    // Handle based on actual property type from schema
+    switch (propertyType) {
+      case 'title':
+        props[key] = {
+          title: [{ type: "text", text: { content: String(value ?? "Untitled") } }]
+        };
+        break;
+        
+      case 'rich_text':
+        props[key] = {
+          rich_text: [{ type: "text", text: { content: String(value ?? "") } }]
+        };
+        break;
+        
+      case 'email':
+        props[key] = { email: String(value || "") };
+        break;
+        
+      case 'phone_number':
+        props[key] = { phone_number: String(value || "") };
+        break;
+        
+      case 'url':
+        props[key] = { url: String(value || "") };
+        break;
+        
+      case 'date':
+        if (typeof value === 'string') {
+          props[key] = { date: { start: value } };
+        } else if (value && typeof value === 'object' && value.start) {
+          props[key] = { date: value };
+        }
+        break;
+        
+      case 'select':
+        props[key] = { select: typeof value === 'string' ? { name: value } : value };
+        break;
+        
+      case 'multi_select':
+        if (Array.isArray(value)) {
+          props[key] = { 
+            multi_select: value.map(v => 
+              typeof v === 'string' ? { name: v } : v
+            ) 
+          };
+        }
+        break;
+        
+      case 'status':
+        props[key] = { status: typeof value === 'string' ? { name: value } : value };
+        break;
+        
+      case 'number':
+        props[key] = { number: typeof value === 'number' ? value : parseFloat(value) || 0 };
+        break;
+        
+      case 'checkbox':
+        props[key] = { checkbox: Boolean(value) };
+        break;
+        
+      case 'people':
+        // People requires user IDs, but if string is provided (like email), we skip it
+        // ChatGPT should send proper user IDs or we ignore
+        if (Array.isArray(value)) {
+          props[key] = { people: value };
+        } else if (typeof value === 'string' && value.startsWith('@')) {
+          // Skip @ mentions in people fields - can't convert email to user ID
+          console.warn(`⚠️  Skipping people field "${key}" - requires user IDs, got: ${value}`);
+        }
+        break;
+        
+      default:
+        // Fallback to simple inference
+        if (typeof value === "string") {
+          props[key] = { rich_text: [{ type: "text", text: { content: value } }] };
+        } else if (typeof value === "number") {
+          props[key] = { number: value };
+        } else if (typeof value === "boolean") {
+          props[key] = { checkbox: value };
+        }
+    }
+  }
+  
+  return props;
+}
+
 // - "Name" maps to title
 // - "Status" maps to status (falls back to select if adjusted server-side)
 export function toNotionProperties(input: Record<string, any> = {}): Record<string, any> {
@@ -181,8 +302,21 @@ export async function handleWrite(payload: WritePayload) {
 
   if (payload.target === "update") {
     const updates: any = {};
-    if ((payload as any).properties)
-      updates.properties = toNotionProperties((payload as any).properties);
+    if ((payload as any).properties) {
+      // Fetch the page to get its database ID, then get schema for smart property conversion
+      const page: any = await getNotionClient().pages.retrieve({ 
+        page_id: (payload as any).page_id! 
+      });
+      const databaseId = page.parent?.database_id;
+      
+      if (databaseId) {
+        // Get database schema to convert properties correctly
+        const dbSchema = await getDatabaseSchema(databaseId);
+        updates.properties = toNotionPropertiesWithSchema((payload as any).properties, dbSchema);
+      } else {
+        updates.properties = toNotionProperties((payload as any).properties);
+      }
+    }
     const res = await getNotionClient().pages.update({
       page_id: (payload as any).page_id!,
       ...updates,
