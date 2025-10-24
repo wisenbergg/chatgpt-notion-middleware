@@ -194,9 +194,28 @@ All endpoints return consistent JSON responses:
 
 ## 📚 Documentation
 
+### API Documentation
 - **OpenAPI Spec**: Available at `/openapi.yaml`
 - **Interactive Docs**: Import OpenAPI spec into your preferred API client
 - **Type Definitions**: Full TypeScript types in `src/schema.ts`
+
+### ChatGPT Prompt Guides
+
+Comprehensive guides for optimal ChatGPT Actions integration:
+
+- **[Adding Properties](./docs/CHATGPT_PROMPTS.md)** - How to add columns/properties to databases
+- **[Creating Pages](./docs/CHATGPT_PAGES.md)** - How to create pages in databases
+- **[Updating Pages](./docs/CHATGPT_UPDATE_PAGE.md)** - How to update existing pages
+- **[Querying Data](./docs/CHATGPT_QUERY.md)** - How to search and query your Notion workspace
+- **[Creating Databases](./docs/CHATGPT_CREATE_DATABASE.md)** - How to create new databases
+
+Each guide includes:
+- ✅ Optimal prompt templates
+- ✅ Real-world examples
+- ✅ Property type references
+- ✅ Troubleshooting tips
+- ✅ Complete JSON structures
+- ✅ Common pitfalls to avoid
 
 ## 🛡️ Error Handling
 
