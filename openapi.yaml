@@ -4,8 +4,35 @@ info:
   version: 5.0.0
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
+    
+    ═══════════════════════════════════════════════════════════════════
+    QUICK REFERENCE - Choose the right action:
+    ═══════════════════════════════════════════════════════════════════
+    
+    🔹 CREATE PAGE IN DATABASE (add record/row):
+       → Use: notionWrite
+       → Required: {"target": "db", "database_id": "..."}
+       → This is the MOST COMMON operation
+    
+    🔹 ADD COLUMNS to database (modify schema):
+       → Use: notionUpdateDatabaseV5
+       → Required: {"database_id": "...", "properties": {...}}
+    
+    🔹 CREATE NEW DATABASE:
+       → Use: notionCreateDatabase
+       → Required: {"title": "...", "properties": {...}}
+    
+    🔹 UPDATE EXISTING PAGE:
+       → Use: notionWrite
+       → Required: {"target": "update", "page_id": "..."}
+    
+    🔹 GET/SEARCH DATA:
+       → Use: notionQuery
+       → Required: {"mode": "db_query|search|page_get|..."}
+    
+    ═══════════════════════════════════════════════════════════════════
+    
     Supports all Notion API 2025-09-03 endpoints including databases, data sources, pages, and blocks.
-    Provides complete coverage for content creation, updates, queries, and management operations.
     Compatible with the latest Notion API architecture separating database metadata from data source schemas.
 servers:
   - url: https://api.wheniwas.me
@@ -13,7 +40,20 @@ paths:
   /chatgpt/notion-write:
     post:
       operationId: notionWrite
-      summary: Create or update Notion content
+      summary: "CREATE PAGES in databases OR update existing pages"
+      description: |
+        PRIMARY USE: Create new pages (records/rows) in a Notion database.
+        
+        REQUIRED FIELDS for creating in database:
+        - target: "db"
+        - database_id: The database ID where you want to create the page
+        
+        EXAMPLES:
+        1. To create a page in database "abc-123": {"target": "db", "database_id": "abc-123", "title": "My Page"}
+        2. To update page "xyz-789": {"target": "update", "page_id": "xyz-789", "properties": {"Status": "Done"}}
+        3. To create child page under "parent-123": {"target": "page", "page_id": "parent-123", "title": "Child"}
+        
+        This action DOES support creating pages in databases. Always use target="db" with database_id.
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
@@ -28,23 +68,74 @@ paths:
                 target:
                   type: string
                   enum: [db, update, page]
+                  description: |
+                    REQUIRED. Choose operation type:
+                    - "db" = CREATE NEW PAGE IN DATABASE (most common - use with database_id)
+                    - "update" = UPDATE EXISTING PAGE (use with page_id)
+                    - "page" = CREATE CHILD PAGE UNDER PARENT PAGE (use with page_id as parent)
                 database_id:
                   type: string
+                  description: |
+                    REQUIRED when target="db". 
+                    The database ID where you want to CREATE A NEW PAGE.
+                    Example: "39943bcc-9ec1-453e-bc02-41292073bc54"
                 page_id:
                   type: string
+                  description: |
+                    REQUIRED when target="update" (ID of page to update) OR target="page" (ID of parent page).
+                    NOT used when target="db".
                 title:
                   type: string
+                  description: "Page title. Recommended for new pages."
                 request_id:
                   type: string
                 properties:
                   type: object
                   additionalProperties: true
+                  description: |
+                    Page property values as key-value pairs.
+                    Examples: {"Status": "Active", "Priority": "High", "Count": 42, "Done": true}
                 content:
                   oneOf:
                     - type: string
                     - type: array
                       items:
                         $ref: '#/components/schemas/BlockInput'
+                  description: |
+                    Page body content. Can be:
+                    - Simple string: "This is my page content"
+                    - Array of blocks: [{"type": "paragraph", "text": "Hello"}, {"type": "heading_1", "text": "Title"}]
+            examples:
+              create_in_database:
+                summary: "MOST COMMON: Create new page/record in database"
+                description: "This creates a brand new page (record/row) inside the specified database"
+                value:
+                  target: "db"
+                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
+                  title: "New Customer Record"
+                  properties:
+                    Status: "Active"
+                    Priority: "High"
+                    Email: "customer@example.com"
+                  content: "Initial notes about this customer"
+              update_page:
+                summary: "Update properties of existing page"
+                description: "Modify property values of a page that already exists"
+                value:
+                  target: "update"
+                  page_id: "existing-page-id-here"
+                  properties:
+                    Status: "Completed"
+                    Progress: 100
+                  content: "Added completion notes"
+              create_child_page:
+                summary: "Create child page under another page (not in database)"
+                description: "Creates a page as a child/subpage of another page (not a database record)"
+                value:
+                  target: "page"
+                  page_id: "parent-page-id-here"
+                  title: "Child Page Title"
+                  content: "Child page content"
       responses:
         "200":
           description: OK
@@ -63,8 +154,27 @@ paths:
   /chatgpt/notion-create-database:
     post:
       operationId: notionCreateDatabase
-      summary: Create a new Notion database under a parent page
-      description: Creates a new database under a specified parent page with a safe subset of property types. Requires auth.
+      summary: "CREATE a brand new Notion database"
+      description: |
+        Create a completely new database in your Notion workspace.
+        
+        REQUIRED FIELDS:
+        - title: Name of the database
+        - properties: Must include at least one property with type="title"
+        - EITHER parent_page_id OR workspace=true
+        
+        EXAMPLE:
+        {
+          "parent_page_id": "page-abc-123",
+          "title": "Customer CRM",
+          "properties": {
+            "Name": {"type": "title"},
+            "Email": {"type": "email"},
+            "Status": {"type": "select", "options": ["Active", "Inactive"]}
+          }
+        }
+        
+        After creating database, use notionWrite with target="db" to add pages to it.
       x-openai-isConsequential: true
       security:
         - bearerAuth: []
@@ -93,8 +203,25 @@ paths:
   /chatgpt/notion-update-database:
     post:
       operationId: notionUpdateDatabaseV5
-      summary: Add properties to a Notion database
-      description: "Add columns. MUST include properties object. Example: {database_id: 'xxx', properties: {FieldName: {type: 'rich_text'}}}"
+      summary: "ADD COLUMNS (properties) to database schema"
+      description: |
+        Add new properties (columns/fields) to an existing Notion database.
+        
+        REQUIRED FIELDS:
+        - database_id: The database to modify
+        - properties: Object with property definitions
+        
+        EXAMPLE: To add a "Notes" text field and "Priority" select field:
+        {
+          "database_id": "abc-123",
+          "properties": {
+            "Notes": {"type": "rich_text"},
+            "Priority": {"type": "select", "options": ["High", "Medium", "Low"]}
+          }
+        }
+        
+        This ADDS properties to the schema. It does NOT create pages/records.
+        To create pages, use notionWrite with target="db".
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
@@ -146,8 +273,23 @@ paths:
   /chatgpt/notion-query:
     post:
       operationId: notionQuery
-      summary: Safe read-only query for Notion
-      description: Search pages/databases, query a database, or retrieve a page.
+      summary: "SEARCH and RETRIEVE data from Notion"
+      description: |
+        Query and retrieve data from your Notion workspace.
+        
+        COMMON MODES:
+        - "search" - Search entire workspace for pages/databases
+        - "db_query" - Get all pages from a specific database (with optional filters)
+        - "page_get" - Retrieve a specific page by ID
+        - "database_get" - Get database schema and properties
+        
+        EXAMPLE to get all pages from database:
+        {"mode": "db_query", "database_id": "abc-123"}
+        
+        EXAMPLE to search for pages:
+        {"mode": "search", "query": "project plan"}
+        
+        This is READ-ONLY. To create or modify data, use notionWrite or notionUpdateDatabaseV5.
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
