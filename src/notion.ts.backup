@@ -107,7 +107,7 @@ export function toBlocks(content?: string | Array<{ type: string; text: string }
 async function getDataSourcesFromDatabase(databaseId: string) {
   console.log(`🔍 Discovering data sources for database ${databaseId}`);
   
-  const database: any = await (getNotionClient() as any).databases.retrieve({ 
+  const database: any = await (notion as any).databases.retrieve({ 
     database_id: extractNotionId(databaseId) 
   });
   
@@ -145,7 +145,7 @@ export async function handleWrite(payload: WritePayload) {
     const properties = toNotionProperties({ Name: title, ...(payload as any).properties });
     
     // Use notion.request for 2025-09-03 API with data_source_id
-    const res: any = await (getNotionClient() as any).request({
+    const res: any = await (notion as any).request({
       path: 'pages',
       method: 'post',
       body: {
@@ -161,20 +161,20 @@ export async function handleWrite(payload: WritePayload) {
 
     const blocks = toBlocks((payload as any).content);
     if (blocks.length) {
-      await getNotionClient().blocks.children.append({ block_id: pageId, children: blocks as any });
+      await notion.blocks.children.append({ block_id: pageId, children: blocks as any });
     }
     return { action: "created_in_database", page_id: pageId, url: res.url };
   }
 
   if (payload.target === "page") {
-    const res = await getNotionClient().pages.create({
+    const res = await notion.pages.create({
       parent: { page_id: (payload as any).page_id! },
       properties: toNotionProperties({ Name: title, ...(payload as any).properties }),
     });
     const pageId = res.id;
     const blocks = toBlocks((payload as any).content);
     if (blocks.length) {
-      await getNotionClient().blocks.children.append({ block_id: pageId, children: blocks as any });
+      await notion.blocks.children.append({ block_id: pageId, children: blocks as any });
     }
     return { action: "created_under_page", page_id: pageId, url: (res as any).url };
   }
@@ -183,14 +183,14 @@ export async function handleWrite(payload: WritePayload) {
     const updates: any = {};
     if ((payload as any).properties)
       updates.properties = toNotionProperties((payload as any).properties);
-    const res = await getNotionClient().pages.update({
+    const res = await notion.pages.update({
       page_id: (payload as any).page_id!,
       ...updates,
     });
 
     const blocks = toBlocks((payload as any).content);
     if (blocks.length) {
-      await getNotionClient().blocks.children.append({ block_id: (payload as any).page_id!, children: blocks as any });
+      await notion.blocks.children.append({ block_id: (payload as any).page_id!, children: blocks as any });
     }
     return { action: "updated_page", page_id: (payload as any).page_id, url: (res as any).url };
   }
@@ -208,7 +208,7 @@ export async function handleQuery(payload: QueryPayload) {
     let next = startCursor;
     let has_more = true;
     do {
-      const res: any = await (getNotionClient() as any).search({
+      const res: any = await (notion as any).search({
         query: (payload as any).query,
         filter: (payload as any).object
           ? { property: "object", value: (payload as any).object }
@@ -241,7 +241,7 @@ export async function handleQuery(payload: QueryPayload) {
     let has_more = true;
     do {
       // Use data source query endpoint
-      const res: any = await (getNotionClient() as any).request({
+      const res: any = await (notion as any).request({
         path: `data_sources/${dataSourceId}/query`,
         method: 'post',
         body: {
@@ -266,12 +266,12 @@ export async function handleQuery(payload: QueryPayload) {
   }
 
   if (payload.mode === "page_get") {
-    const res = await (getNotionClient() as any).pages.retrieve({ page_id: (payload as any).page_id! });
+    const res = await (notion as any).pages.retrieve({ page_id: (payload as any).page_id! });
     return { mode: "page_get", page: res };
   }
 
   if (payload.mode === "database_get") {
-    const res = await (getNotionClient() as any).databases.retrieve({ 
+    const res = await (notion as any).databases.retrieve({ 
       database_id: (payload as any).database_id!
     });
     
@@ -279,7 +279,7 @@ export async function handleQuery(payload: QueryPayload) {
     // Fetch the first data source to get the properties
     if (res.data_sources && res.data_sources.length > 0) {
       const dataSourceId = extractNotionId(res.data_sources[0].id);
-      const dataSource = await (getNotionClient() as any).request({
+      const dataSource = await (notion as any).request({
         method: 'get',
         path: `data_sources/${dataSourceId}`
       });
@@ -296,7 +296,7 @@ export async function handleQuery(payload: QueryPayload) {
   }
 
   if (payload.mode === "data_source_get") {
-    const res = await (getNotionClient() as any).request({
+    const res = await (notion as any).request({
       method: 'get',
       path: `data_sources/${extractNotionId((payload as any).data_source_id!)}`
     });
@@ -313,7 +313,7 @@ export async function handleQuery(payload: QueryPayload) {
     if (payload.page_size) queryBody.page_size = payload.page_size;
     if ((payload as any).result_type) queryBody.result_type = (payload as any).result_type;
     
-    const res = await (getNotionClient() as any).request({
+    const res = await (notion as any).request({
       method: 'post',
       path: `data_sources/${dataSourceId}/query`,
       body: queryBody
@@ -488,7 +488,7 @@ export async function handleQuery(payload: QueryPayload) {
       const dbId = extractNotionId(envDb || "");
       if (dbId) {
         try {
-          const db: any = await (getNotionClient() as any).databases.retrieve({ database_id: dbId });
+          const db: any = await (notion as any).databases.retrieve({ database_id: dbId });
           if (db?.parent?.type === "page_id" && db?.parent?.page_id) {
             parentPageId = db.parent.page_id;
           }
@@ -513,7 +513,7 @@ export async function handleQuery(payload: QueryPayload) {
 
     if (!parentPageId && (payload as any).workspace) {
       try {
-        const holding: any = await (getNotionClient() as any).pages.create({
+        const holding: any = await (notion as any).pages.create({
           parent: { type: "workspace", workspace: true },
           properties: {
             title: { title: [{ type: "text", text: { content: title } }] },
@@ -531,7 +531,7 @@ export async function handleQuery(payload: QueryPayload) {
       }
     }
 
-    const res: any = await (getNotionClient() as any).databases.create(createPayload);
+    const res: any = await (notion as any).databases.create(createPayload);
 
     return { action: "created_database", database_id: res.id, url: res.url };
   }
@@ -559,7 +559,7 @@ export async function handleQuery(payload: QueryPayload) {
       console.log(`� Updating data source ${dataSourceId} with properties:`, properties);
       
       // Update the data source properties using the 2025-09-03 API
-      const res: any = await (getNotionClient() as any).request({
+      const res: any = await (notion as any).request({
         method: 'PATCH',
         path: `data_sources/${dataSourceId}`,
         body: {
@@ -577,7 +577,7 @@ export async function handleQuery(payload: QueryPayload) {
       const dataSourceId = await getPrimaryDataSourceId(databaseId);
       
       // Get current data source to understand existing properties
-      const currentDataSource: any = await (getNotionClient() as any).request({
+      const currentDataSource: any = await (notion as any).request({
         method: 'GET',
         path: `data_sources/${dataSourceId}`
       });
@@ -595,7 +595,7 @@ export async function handleQuery(payload: QueryPayload) {
 
       console.log(`📊 Updating data source ${dataSourceId} with renamed properties`);
       
-      const res: any = await (getNotionClient() as any).request({
+      const res: any = await (notion as any).request({
         method: 'PATCH',
         path: `data_sources/${dataSourceId}`,
         body: {
@@ -628,7 +628,7 @@ export async function handleQuery(payload: QueryPayload) {
       properties[name] = prop;
     }
 
-    const res: any = await (getNotionClient() as any).request({
+    const res: any = await (notion as any).request({
       method: 'POST',
       path: 'data_sources',
       body: {
@@ -696,7 +696,7 @@ export async function handleQuery(payload: QueryPayload) {
     console.log("📋 Property schema changes:", JSON.stringify(requestBody, null, 2));
 
     // PATCH request to update data source properties (schema)
-    const res: any = await (getNotionClient() as any).request({
+    const res: any = await (notion as any).request({
       method: 'PATCH',
       path: `data_sources/${extractNotionId(payload.data_source_id)}`,
       body: requestBody
@@ -712,7 +712,7 @@ export async function handleQuery(payload: QueryPayload) {
 
     console.log(`📦 Retrieving block ${block_id}`);
     
-    const response = await getNotionClient().blocks.retrieve({
+    const response = await notion.blocks.retrieve({
       block_id: block_id,
     });
 
@@ -730,7 +730,7 @@ export async function handleQuery(payload: QueryPayload) {
 
     console.log(`📋 Retrieving children for block ${block_id}`);
     
-    const response = await getNotionClient().blocks.children.list({
+    const response = await notion.blocks.children.list({
       block_id: block_id,
       page_size: page_size,
       start_cursor: start_cursor,
@@ -753,7 +753,7 @@ export async function handleQuery(payload: QueryPayload) {
 
     console.log(`➕ Appending ${children.length} children to block ${block_id}`);
     
-    const response = await getNotionClient().blocks.children.append({
+    const response = await notion.blocks.children.append({
       block_id: block_id,
       children: children,
       after: after,
@@ -776,7 +776,7 @@ export async function handleQuery(payload: QueryPayload) {
 
     console.log(`🔧 Updating block ${block_id}:`, updateData);
     
-    const response = await getNotionClient().blocks.update({
+    const response = await notion.blocks.update({
       block_id: block_id,
       ...updateData,
     });
@@ -792,7 +792,7 @@ export async function handleQuery(payload: QueryPayload) {
     console.log(`🗑️ Deleting block ${block_id}`);
     
     // Delete by setting archived to true
-    const response = await getNotionClient().blocks.update({
+    const response = await notion.blocks.update({
       block_id: block_id,
       archived: true,
     });
@@ -815,7 +815,7 @@ export async function handleQuery(payload: QueryPayload) {
 
     console.log(`📄 Retrieving property ${property_id} for page ${page_id}`);
     
-    const response = await getNotionClient().pages.properties.retrieve({
+    const response = await notion.pages.properties.retrieve({
       page_id: page_id,
       property_id: property_id,
       page_size: page_size,
@@ -836,7 +836,7 @@ export async function handleQuery(payload: QueryPayload) {
 
     console.log(`📋 Listing templates for data source ${data_source_id}`);
     
-    const response = await getNotionClient().request({
+    const response = await notion.request({
       path: `data_sources/${data_source_id}/templates`,
       method: "get",
       query: {

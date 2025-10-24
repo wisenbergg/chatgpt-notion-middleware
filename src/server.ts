@@ -1,12 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
-import express from "express";
-import type { Request, Response, NextFunction } from "express";
-import cors from "cors";
-import morgan from "morgan";
-import { WritePayload as WritePayloadSchema, QueryPayload as QueryPayloadSchema, CreateDatabasePayload as CreateDatabasePayloadSchema, UpdateDatabasePayload as UpdateDatabasePayloadSchema } from "./schema.js";
-import { handleWrite, handleQuery, handleCreateDatabase, handleUpdateDatabase } from "./notion.js";
 
 // Load .env if present, else .env.notion (your current file), else default env
 const root = process.cwd();
@@ -22,6 +16,13 @@ if (envPath) {
   dotenv.config();
   console.log(`Loaded environment from default process env`);
 }
+
+import express from "express";
+import type { Request, Response, NextFunction } from "express";
+import cors from "cors";
+import morgan from "morgan";
+import { WritePayload as WritePayloadSchema, QueryPayload as QueryPayloadSchema, CreateDatabasePayload as CreateDatabasePayloadSchema, UpdateDatabasePayload as UpdateDatabasePayloadSchema } from "./schema.js";
+import { handleWrite, handleQuery, handleCreateDatabase, handleUpdateDatabase } from "./notion.js";
 
 const app = express();
 app.use(cors({ origin: "*" }));

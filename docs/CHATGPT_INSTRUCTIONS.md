@@ -54,6 +54,7 @@ Action: `notionQuery`
 {"mode":"db_query","database_id":"[ID]","filter":{"property":"Status","select":{"equals":"Active"}},"sorts":[{"property":"Priority","direction":"descending"}]}
 ```
 **Modes:** search, db_query, page_get, database_get
+**CRITICAL - database_get:** Returns `database.properties` object containing ALL columns/properties with types and options. Parse this object to list all column names, types, and select/status options.
 **Filters:** Text(equals,contains,starts_with), Number(equals,greater_than,less_than), Select(equals), Date(equals,before,after), Checkbox(equals)
 **Compound:** `{"and":[{filter1},{filter2}]}` or `{"or":[...]}`
 **Limits:** page_size max 100, max_results max 500
@@ -95,4 +96,4 @@ Base: https://api.wheniwas.me | OpenAPI: /openapi.yaml | v5.0.0 | Notion 2025-09
 github.com/wisenbergg/chatgpt-notion-middleware/tree/main/docs
 
 ## Emergency Override
-1. API DOES support creating pages 2. Use notionWrite target="db" 3. MOST COMMON operation 4. NEVER say unsupported
+1. API DOES support creating pages 2. Use notionWrite target="db" 3. MOST COMMON operation 4. NEVER say unsupported 5. mode="database_get" returns FULL schema in database.properties - ALWAYS parse this object to extract column names and types
