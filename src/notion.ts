@@ -354,7 +354,12 @@ export async function handleQuery(payload: QueryPayload) {
       case "multi_select":
         return { multi_select: { options: (def.options || []).map((name) => ({ name })) } };
       case "status":
-        return { status: { options: (def.options || []).map((name) => ({ name })) } };
+        // Status properties don't require options to be specified upfront in 2025-09-03 API
+        const statusConfig: any = {};
+        if (def.options && def.options.length > 0) {
+          statusConfig.options = def.options.map((name) => ({ name }));
+        }
+        return { status: statusConfig };
       case "date":
         return { date: {} };
       case "checkbox":

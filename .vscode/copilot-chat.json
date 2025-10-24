@@ -1,0 +1,38 @@
+{
+  "customPrompts": {
+    "prompts": [
+      {
+        "command": "audit-shrinkchat",
+        "name": "Repo audit: shrink-chat",
+        "description": "Scan for duplicate inference handlers, prompt builders, retrieval modules, and telemetry conflicts.",
+        "content": "Open docs/voice-controller-spec.md and follow the 'Pre-flight Repo Audit & Conflict Check'. Produce a short report listing: active inference entrypoint (expect app/api/shrink/route.ts); duplicate files (with paths); prompt builder sources; retrieval modules; conflicting telemetry field names; and suggested actions. Do not modify any files."
+      },
+      {
+        "command": "vc-audit",
+        "name": "Voice Controller: Audit",
+        "description": "Run repo audit per docs/voice-controller-spec.md using shell and fs only; output markdown; do not modify files.",
+        "content": "TOOLS_ALLOWLIST: [\n  'shell.run', 'fs.readFile', 'fs.writeFile'\n]\n\nCONSTRAINTS:\n- Max 1 tool call per sub-step unless output requires pagination.\n- If a tool fails twice, stop and summarize; ask for confirmation before retrying.\n- Prefer previously used tool over discovering a new one.\n\nInstructions:\n- Use only shell and fs tools (no git, no GitHub).\n- Follow docs/voice-controller-spec.md → Pre-flight Repo Audit & Conflict Check.\n- Output a concise markdown report.\n- Do not modify any files."
+      },
+      {
+        "command": "vc-implement-tests",
+        "name": "Voice Controller: Implement + Tests",
+        "description": "Scaffold modules, wire app/api/shrink/route.ts, add tests, run tests, and commit locally in granular commits (shell + git only).",
+        "content": "TOOLS_ALLOWLIST: [\n  'shell.run', 'git.status', 'git.diff', 'git.commit', 'git.branch'\n]\n\nCONSTRAINTS:\n- Max 1 tool call per sub-step unless output requires pagination.\n- If a tool fails twice, stop and summarize; ask for confirmation before retrying.\n- Prefer previously used tool over discovering a new one.\n\nInstructions:\n- Implement per docs/voice-controller-spec.md (modules → logic → route wiring).\n- Add and run tests; keep commits small and descriptive.\n- Do not push or open PR in this phase."
+      },
+      {
+        "command": "vc-open-pr",
+        "name": "Voice Controller: Open PR",
+        "description": "Push branch and create PR with body/labels/reviewers from the spec (git + GitHub only).",
+        "content": "TOOLS_ALLOWLIST: [\n  'git.push', 'github.pulls.create', 'github.pulls.requestReviewers', 'github.pulls.update'\n]\n\nCONSTRAINTS:\n- Max 1 tool call per sub-step unless output requires pagination.\n- If a tool fails twice, stop and summarize; ask for confirmation before retrying.\n- Prefer previously used tool over discovering a new one.\n\nInstructions:\n- Push the prepared branch.\n- Open a PR referencing the spec’s checklist; add reviewers as needed.\n- No shell execution or local file edits in this phase."
+      },
+      {
+        "command": "vc-allowlist",
+        "name": "Agent TOOLS_ALLOWLIST (global)",
+        "description": "Master allow-list for MCP tools; paste at top of any agent prompt.",
+  "content": "TOOLS_ALLOWLIST: [\n  'shell.run', 'shell.read',\n  'git.status', 'git.diff', 'git.commit', 'git.branch', 'git.push',\n  'github.pulls.create', 'github.pulls.update', 'github.pulls.requestReviewers',\n  'github.issues.create', 'github.repos.get',\n  'fs.readFile', 'fs.writeFile'\n]\n\nIf a tool is not in TOOLS_ALLOWLIST, do not call it.\n(Adjust names to your MCP server’s actual tool ids; some shells expose a single shell tool, some process.run.)\n\nCONSTRAINTS:\n- Max 1 tool call per sub-step unless output requires pagination.\n- If a tool fails twice, stop and summarize; ask for confirmation before retrying.\n- Prefer previously used tool over discovering a new one."
+      }
+    ]
+  },
+  "profile": "voice-controller-minimal",
+  "mcpConfig": "./.vscode/mcp.profile.voice-controller.json"
+}

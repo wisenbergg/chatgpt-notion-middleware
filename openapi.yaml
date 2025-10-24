@@ -93,11 +93,8 @@ paths:
   /chatgpt/notion-update-database:
     post:
       operationId: notionUpdateDatabaseV5
-      summary: Update a Notion database schema (add/rename properties)
-      description: |
-        Add new properties (columns) and/or rename existing properties in a database.
-        IMPORTANT: Send properties directly at the top level, NOT nested in a content field.
-        Example: {"database_id": "...", "properties": {"Column Name": {"type": "select"}}}
+      summary: Add properties to a Notion database
+      description: "Add columns. MUST include properties object. Example: {database_id: 'xxx', properties: {FieldName: {type: 'rich_text'}}}"
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
@@ -107,6 +104,29 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateDatabasePayload'
+            examples:
+              add_text_property:
+                summary: Add a text property
+                value:
+                  database_id: "123e4567-e89b-12d3-a456-426614174000"
+                  properties:
+                    Notes:
+                      type: "rich_text"
+              add_select_property:
+                summary: Add a select property
+                value:
+                  database_id: "123e4567-e89b-12d3-a456-426614174000"
+                  properties:
+                    Category:
+                      type: "select"
+                      options: ["High", "Medium", "Low"]
+              add_status_property:
+                summary: Add a status property
+                value:
+                  database_id: "123e4567-e89b-12d3-a456-426614174000"
+                  properties:
+                    Status:
+                      type: "status"
       responses:
         "200":
           description: OK
@@ -399,7 +419,7 @@ components:
           description: Target database to update. Accepts full Notion URL or 32-char ID; the server normalizes to a hyphenated ID.
         properties:
           type: object
-          description: Map of new property name to a definition (adds new columns to the database)
+          description: "REQUIRED. Object mapping property names to definitions. Each must have 'type' field."
           additionalProperties:
             oneOf:
               - type: object
@@ -410,6 +430,7 @@ components:
                   options:
                     type: array
                     items: { type: string }
+                    description: For select/multi_select types - list of option values
                   number_format:
                     type: string
                   expression:
@@ -444,6 +465,7 @@ components:
                       relation_type:
                         type: string
                         enum: [single_property, dual_property, many_to_many]
+                required: [type]
               - type: object
                 properties:
                   raw:
@@ -459,7 +481,7 @@ components:
                 properties:
                   name:
                     type: string
-      required: [database_id]
+      required: [database_id, properties]
   securitySchemes:
     bearerAuth:
       type: http

@@ -23,12 +23,12 @@ POST /chatgpt/notion-update-database
 
 - database_id: string (required)
   - Accepts full Notion URL or a 32-char raw ID; the server normalizes it to a hyphenated ID automatically.
-- add_properties: object (optional)
+- properties: object (required for adding properties)
   - Map of property name to:
     - Simplified definition: type + minimal fields
     - Or raw passthrough: { "raw": { ...NotionPropertyObject } }
-- rename_properties: object (optional)
-  - Map of current property name to { name: "New Name" }
+- rename: object (optional)
+  - Map of current property name to new name (string) or { name: "New Name" }
 
 Supported simplified types (same as creation):
 - Basic: title, rich_text, number (number_format), select (options[]), multi_select (options[]), status (options[]), date, checkbox, url, email, phone_number, people, files
@@ -49,7 +49,7 @@ curl -X POST https://api.wheniwas.me/chatgpt/notion-update-database \
   -H "Authorization: Bearer YOUR_SECRET" \
   -d '{
     "database_id": "YOUR_DB_ID",
-    "add_properties": {
+    "properties": {
       "Assignee": { "type": "people" },
       "Points": { "type": "number", "number_format": "number" },
       "Priority": { "type": "select", "options": ["P1","P2","P3"] }
@@ -65,9 +65,9 @@ curl -X POST https://api.wheniwas.me/chatgpt/notion-update-database \
   -H "Authorization: Bearer YOUR_SECRET" \
   -d '{
     "database_id": "YOUR_DB_ID",
-    "rename_properties": {
-      "Points": { "name": "Story Points" },
-      "Priority": { "name": "Severity" }
+    "rename": {
+      "Points": "Story Points",
+      "Priority": "Severity"
     }
   }'
 ```
@@ -80,7 +80,7 @@ curl -X POST https://api.wheniwas.me/chatgpt/notion-update-database \
   -H "Authorization: Bearer YOUR_SECRET" \
   -d '{
     "database_id": "YOUR_DB_ID",
-    "add_properties": {
+    "properties": {
       "Tasks": { "type": "relation", "database_id": "TARGET_TASKS_DB_ID", "relation_type": "single_property" },
       "Task Count": { "type": "rollup", "relation_property_name": "Tasks", "function": "count" }
     }
@@ -95,7 +95,7 @@ curl -X POST https://api.wheniwas.me/chatgpt/notion-update-database \
   -H "Authorization: Bearer YOUR_SECRET" \
   -d '{
     "database_id": "YOUR_DB_ID",
-    "add_properties": {
+    "properties": {
       "Status": {
         "raw": {
           "status": {

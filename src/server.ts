@@ -90,6 +90,34 @@ app.all("/debug/ping", (req: Request, res: Response) => {
   });
 });
 
+// Debug endpoint to inspect ChatGPT payloads (requires auth)
+app.all("/debug/chatgpt-payload", (req: Request, res: Response) => {
+  // Check auth first
+  const expected = process.env.CHATGPT_ACTION_SECRET;
+  if (expected) {
+    const auth = req.header("Authorization");
+    const provided = auth?.replace(/^Bearer\s+/i, "");
+    if (!provided || provided !== expected) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+  }
+  
+  res.json({
+    ok: true,
+    method: req.method,
+    path: req.path,
+    headers: {
+      'content-type': req.headers['content-type'],
+      'authorization': req.headers.authorization ? 'Bearer [REDACTED]' : 'none'
+    },
+    body: req.body,
+    body_keys: Object.keys(req.body || {}),
+    has_properties: !!(req.body && req.body.properties),
+    properties_count: req.body && req.body.properties ? Object.keys(req.body.properties).length : 0,
+    properties_keys: req.body && req.body.properties ? Object.keys(req.body.properties) : []
+  });
+});
+
 // Root endpoint: simple info page for browsers
 app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({

@@ -1,0 +1,81 @@
+{
+	"servers": {
+		"filesystem": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/hipdev/dev/shrink-chat"],
+			"env": {
+				"MCP_MODE": "development"
+			}
+		},
+		"memory": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-memory"],
+			"env": {
+				"MEMORY_PERSIST": "true",
+				"MEMORY_PATH": ".mcp/memory"
+			}
+		},
+		"github": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-github"],
+			"env": {
+				"GITHUB_PERSONAL_ACCESS_TOKEN": "${env:GITHUB_TOKEN}",
+				"GITHUB_OWNER": "${env:GITHUB_OWNER}"
+			}
+		},
+		"postgres": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-postgres", "${env:DATABASE_URL}"],
+			"env": {
+				"POSTGRES_SCHEMA_CACHE": "true",
+				"LOCAL_DATABASE_URL": "${env:LOCAL_DATABASE_URL}"
+			}
+		},
+		"puppeteer": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+			"env": {
+				"PUPPETEER_HEADLESS": "new",
+				"PUPPETEER_CACHE_DIR": ".mcp/puppeteer"
+			}
+		},
+		"sequential-thinking": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+			"env": {
+				"THINKING_MODEL": "advanced",
+				"ENABLE_REFLECTION": "true"
+			}
+		},
+		"fetch": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-fetch"],
+			"env": {
+				"FETCH_CACHE": "true",
+				"FETCH_TIMEOUT": "30000"
+			}
+		},
+		"google-maps": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-google-maps"],
+			"env": {
+				"GOOGLE_MAPS_API_KEY": "${env:GOOGLE_MAPS_API_KEY}"
+			}
+		},
+		"perplexity": {
+			"command": "npx",
+			"args": ["-y", "server-perplexity-ask"],
+			"env": {
+				"PERPLEXITY_API_KEY": "${env:PERPLEXITY_API_KEY}",
+				"PERPLEXITY_MODEL": "${env:PERPLEXITY_MODEL}"
+			}
+		},
+		"everything": {
+			"command": "npx",
+			"args": ["-y", "@modelcontextprotocol/server-everything"],
+			"env": {
+				"EVERYTHING_INDEX_PATH": ".mcp/search-index"
+			}
+		}
+	}
+}
