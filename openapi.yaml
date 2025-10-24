@@ -1,0 +1,467 @@
+openapi: 3.1.0
+info:
+  title: ChatGPT → Notion Middleware
+  version: 5.0.0
+  description: |
+    Comprehensive Notion API integration middleware with full CRUD operations.
+    Supports all Notion API 2025-09-03 endpoints including databases, data sources, pages, and blocks.
+    Provides complete coverage for content creation, updates, queries, and management operations.
+    Compatible with the latest Notion API architecture separating database metadata from data source schemas.
+servers:
+  - url: https://api.wheniwas.me
+paths:
+  /chatgpt/notion-write:
+    post:
+      operationId: notionWrite
+      summary: Create or update Notion content
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target]
+              properties:
+                target:
+                  type: string
+                  enum: [db, update, page]
+                database_id:
+                  type: string
+                page_id:
+                  type: string
+                title:
+                  type: string
+                request_id:
+                  type: string
+                properties:
+                  type: object
+                  additionalProperties: true
+                content:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        $ref: '#/components/schemas/BlockInput'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  action: { type: string }
+                  page_id: { type: string }
+                  url: { type: string }
+                  request_id: { type: ["string", "null"] }
+        "400":
+          description: Invalid payload
+  /chatgpt/notion-create-database:
+    post:
+      operationId: notionCreateDatabase
+      summary: Create a new Notion database under a parent page
+      description: Creates a new database under a specified parent page with a safe subset of property types. Requires auth.
+      x-openai-isConsequential: true
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatabasePayload'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  action: { type: string }
+                  database_id: { type: string }
+                  url: { type: string }
+        "400":
+          description: Invalid payload
+        "401":
+          description: Unauthorized
+  /chatgpt/notion-update-database:
+    post:
+      operationId: notionUpdateDatabaseV5
+      summary: Update a Notion database schema (add/rename properties)
+      description: |
+        Add new properties (columns) and/or rename existing properties in a database.
+        IMPORTANT: Send properties directly at the top level, NOT nested in a content field.
+        Example: {"database_id": "...", "properties": {"Column Name": {"type": "select"}}}
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDatabasePayload'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  action: { type: string }
+                  database_id: { type: string }
+                  url: { type: string }
+        "400":
+          description: Invalid payload
+        "401":
+          description: Unauthorized
+  /chatgpt/notion-query:
+    post:
+      operationId: notionQuery
+      summary: Safe read-only query for Notion
+      description: Search pages/databases, query a database, or retrieve a page.
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryPayload'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  result:
+                    oneOf:
+                      - type: object
+                        properties:
+                          mode: { type: string, enum: [search, db_query, page_get, database_get, data_source_get, data_source_query, data_source_update, block_get, block_children_get, block_children_append, block_update, block_delete, page_property_get, data_source_templates_list] }
+                          results: { type: array, items: { type: object, additionalProperties: true } }
+                          has_more: { type: boolean }
+                          next_cursor: { type: ["string", "null"] }
+                      - type: object
+                        properties:
+                          mode: { type: string, enum: [page_get, database_get, data_source_get] }
+                          page: { type: object, additionalProperties: true }
+                          database: { type: object, additionalProperties: true }
+                          data_source: { type: object, additionalProperties: true }
+                          result: { type: object, additionalProperties: true }
+        "400":
+          description: Invalid payload
+        "401":
+          description: Unauthorized
+  /debug/ping:
+    get:
+      operationId: debugPingGet
+      summary: Connectivity and auth presence check (GET)
+      description: Returns auth presence flags and basic env info. Does not require auth.
+      x-openai-isConsequential: false
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  method: { type: string }
+                  path: { type: string }
+                  auth:
+                    type: object
+                    properties:
+                      bearer: { type: boolean }
+                  body_keys:
+                    type: array
+                    items: { type: string }
+                  env:
+                    type: object
+                    properties:
+                      has_notion_token: { type: boolean }
+                      has_default_db: { type: boolean }
+                      port: { type: integer }
+    post:
+      operationId: debugPing
+      summary: Connectivity and auth presence check
+      description: Returns auth presence flags and basic env info. Does not require auth.
+      x-openai-isConsequential: false
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PingRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  method: { type: string }
+                  path: { type: string }
+                  auth:
+                    type: object
+                    properties:
+                      bearer: { type: boolean }
+                  body_keys:
+                    type: array
+                    items: { type: string }
+                  env:
+                    type: object
+                    properties:
+                      has_notion_token: { type: boolean }
+                      has_default_db: { type: boolean }
+                      port: { type: integer }
+components:
+  schemas:
+    PingRequest:
+      type: object
+      properties: {}
+      additionalProperties: true
+    BlockInput:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [paragraph, heading_1, heading_2, heading_3, bulleted_list_item, numbered_list_item, to_do, quote, callout, toggle]
+        text:
+          type: string
+      required: [type, text]
+      additionalProperties: false
+    QueryPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        mode:
+          type: string
+          enum: [search, db_query, page_get, database_get, data_source_get, data_source_query, data_source_update, block_get, block_children_get, block_children_append, block_update, block_delete, page_property_get, data_source_templates_list]
+        # search
+        query:
+          type: string
+        object:
+          type: string
+          enum: [page, database]
+        # db_query and data_source_query
+        database_id:
+          type: string
+        filter:
+          type: object
+          additionalProperties: true
+        sorts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        start_cursor:
+          type: string
+        max_results:
+          type: integer
+          minimum: 1
+          maximum: 500
+        # page_get and page_property_get
+        page_id:
+          type: string
+        property_id:
+          type: string
+        # data_source operations
+        data_source_id:
+          type: string
+        properties:
+          type: object
+          additionalProperties: true
+        title:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        icon:
+          type: object
+          additionalProperties: true
+        in_trash:
+          type: boolean
+        parent:
+          type: object
+          properties:
+            database_id:
+              type: string
+        result_type:
+          type: string
+          enum: [page, data_source]
+        filter_properties:
+          type: array
+          items:
+            type: string
+        # block operations
+        block_id:
+          type: string
+        children:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        after:
+          type: string
+        archived:
+          type: boolean
+        # data_source_templates_list
+        name:
+          type: string
+      required: [mode]
+    CreateDatabasePayload:
+      type: object
+      additionalProperties: false
+      properties:
+        parent_page_id:
+          type: string
+          description: The parent page ID under which the database will be created (omit when workspace=true)
+        workspace:
+          type: boolean
+          description: When true, creates the database at the workspace root
+        title:
+          type: string
+          description: The title of the new database
+        properties:
+          type: object
+          description: |
+            Map of property name to a definition. Use either a simplified definition or a raw Notion schema via { "raw": { ... } }.
+            Supported simplified types: title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id.
+          additionalProperties:
+            oneOf:
+              - type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id]
+                  options:
+                    type: array
+                    items: { type: string }
+                  number_format:
+                    type: string
+                  expression:
+                    type: string
+                  database_id:
+                    type: string
+                  relation_type:
+                    type: string
+                    enum: [single_property, dual_property]
+                  synced_property_name:
+                    type: string
+                  synced_property_id:
+                    type: string
+                  relation_property_name:
+                    type: string
+                  relation_property_id:
+                    type: string
+                  rollup_property_name:
+                    type: string
+                  rollup_property_id:
+                    type: string
+                  function:
+                    type: string
+                  prefix:
+                    type: string
+              - type: object
+                properties:
+                  raw:
+                    type: object
+                    additionalProperties: true
+      required: [title]
+    UpdateDatabasePayload:
+      type: object
+      additionalProperties: false
+      properties:
+        database_id:
+          type: string
+          description: Target database to update. Accepts full Notion URL or 32-char ID; the server normalizes to a hyphenated ID.
+        properties:
+          type: object
+          description: Map of new property name to a definition (adds new columns to the database)
+          additionalProperties:
+            oneOf:
+              - type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id]
+                  options:
+                    type: array
+                    items: { type: string }
+                  number_format:
+                    type: string
+                  expression:
+                    type: string
+                  database_id:
+                    type: string
+                  relation_type:
+                    type: string
+                    enum: [single_property, dual_property, many_to_many]
+                  synced_property_name:
+                    type: string
+                  synced_property_id:
+                    type: string
+                  relation_property_name:
+                    type: string
+                  relation_property_id:
+                    type: string
+                  rollup_property_name:
+                    type: string
+                  rollup_property_id:
+                    type: string
+                  function:
+                    type: string
+                  prefix:
+                    type: string
+                  relation:
+                    type: object
+                    description: Nested relation definition
+                    properties:
+                      database_id:
+                        type: string
+                      relation_type:
+                        type: string
+                        enum: [single_property, dual_property, many_to_many]
+              - type: object
+                properties:
+                  raw:
+                    type: object
+                    additionalProperties: true
+        rename:
+          type: object
+          description: Map of current property name to new name (renames existing columns)
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: object
+                properties:
+                  name:
+                    type: string
+      required: [database_id]
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,0 +1,67 @@
+{
+  "promptTemplates": {
+    "agent-orchestrator": {
+      "description": "Orchestrate multiple AI agents for complex tasks",
+      "prompt": "You are an AI orchestrator managing multiple specialized agents. Break down the task into subtasks, assign to appropriate agents, and synthesize results. Use memory server for context persistence, sequential-thinking for planning, and maintain state across interactions."
+    },
+    "feature-architect": {
+      "description": "Design and implement advanced LLM features",
+      "prompt": "You are an LLM feature architect. Design innovative AI-powered features using: 1) Chain-of-thought reasoning with sequential-thinking server, 2) Multi-modal capabilities via puppeteer for visual understanding, 3) Persistent context via memory server, 4) External data integration via fetch/APIs. Focus on: RAG patterns, agentic workflows, tool-use optimization, and emergent capabilities."
+    },
+    "code-evolution": {
+      "description": "Evolve codebase with AI-first patterns",
+      "prompt": "You are a code evolution specialist. Refactor and enhance code for AI-native patterns: 1) Implement streaming responses, 2) Add semantic caching layers, 3) Create embeddings-ready data structures, 4) Design for LLM observability, 5) Optimize for token efficiency. Use filesystem server for analysis and github for version control."
+    },
+    "workflow-optimizer": {
+      "description": "Optimize development workflows with AI",
+      "prompt": "You are a workflow optimization expert. Analyze current processes and implement AI-powered improvements: 1) Automate repetitive tasks with LLM chains, 2) Create intelligent code review workflows, 3) Design context-aware development assistants, 4) Implement predictive debugging, 5) Build self-documenting systems."
+    },
+    "data-alchemist": {
+      "description": "Transform and enrich data for LLM consumption",
+      "prompt": "You are a data alchemist specializing in LLM-ready data. Transform raw data into optimized formats: 1) Create semantic indexes with everything server, 2) Design vector-friendly schemas in postgres, 3) Build knowledge graphs, 4) Implement intelligent chunking strategies, 5) Create retrieval-optimized structures."
+    },
+    "test-synthesizer": {
+      "description": "Generate comprehensive AI-aware test suites",
+      "prompt": "You are an AI test synthesis expert. Create tests that validate: 1) LLM response quality, 2) Prompt injection resistance, 3) Context window optimization, 4) Tool-use accuracy, 5) Semantic consistency. Generate edge cases, adversarial inputs, and performance benchmarks."
+    },
+    "integration-maestro": {
+      "description": "Orchestrate complex system integrations",
+      "prompt": "You are an integration maestro. Connect systems intelligently: 1) Design event-driven AI pipelines, 2) Create smart API orchestrations with fetch, 3) Build real-time collaboration via slack, 4) Implement location-aware features with google-maps, 5) Ensure seamless data flow across all MCP servers."
+    }
+  },
+  "workflowOptimizations": {
+    "continuous-learning": {
+      "description": "Enable continuous model improvement",
+      "servers": ["memory", "filesystem", "postgres"],
+      "pattern": "Collect feedback → Store in memory → Analyze patterns → Update prompts → Measure improvement"
+    },
+    "multi-stage-reasoning": {
+      "description": "Complex problem solving pipeline",
+      "servers": ["sequential-thinking", "memory", "fetch"],
+      "pattern": "Decompose → Research → Reason → Synthesize → Validate → Refine"
+    },
+    "autonomous-development": {
+      "description": "Self-improving development cycle",
+      "servers": ["filesystem", "github", "puppeteer"],
+      "pattern": "Analyze code → Identify improvements → Implement changes → Test → Deploy → Monitor"
+    }
+  },
+  "agenticCapabilities": {
+    "goal-planning": {
+      "server": "sequential-thinking",
+      "capability": "Autonomous goal decomposition and planning"
+    },
+    "tool-selection": {
+      "servers": "all",
+      "capability": "Dynamic tool selection based on task requirements"
+    },
+    "self-reflection": {
+      "server": "memory",
+      "capability": "Learn from past interactions and improve"
+    },
+    "environment-sensing": {
+      "servers": ["puppeteer", "everything", "filesystem"],
+      "capability": "Understand and adapt to environment changes"
+    }
+  }
+}
