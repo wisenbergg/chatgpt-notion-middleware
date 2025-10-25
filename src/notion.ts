@@ -319,10 +319,14 @@ export async function handleWrite(payload: WritePayload) {
   }
 
   if (payload.target === "page") {
+    // Child pages (non-database pages) only have a title property, no custom properties
     const res = await getNotionClient().pages.create({
       parent: { page_id: (payload as any).page_id! },
-      // Child pages are not in a database; use heuristic conversion
-      properties: toNotionProperties({ Name: title, ...(payload as any).properties }),
+      properties: {
+        title: {
+          title: [{ type: "text", text: { content: title } }]
+        }
+      }
     });
     const pageId = res.id;
     const blocks = toBlocks((payload as any).content);
