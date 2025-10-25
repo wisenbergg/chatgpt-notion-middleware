@@ -347,9 +347,13 @@ export async function handleWrite(payload: WritePayload) {
         rawProps[propName] = (payload as any)[propName];
       }
     }
-    // Build final properties including Name from title if not provided
+    // Build final properties including title property from title if not provided
+    // Find the title property name from schema (e.g., "Name", "Influencer Name", "Task", etc.)
     const withName = { ...(rawProps || {}) } as Record<string, any>;
-    if (withName.Name === undefined) withName.Name = title;
+    const titlePropName = Object.keys(dbSchema).find(key => dbSchema[key]?.type === 'title');
+    if (titlePropName && withName[titlePropName] === undefined) {
+      withName[titlePropName] = title;
+    }
     const properties = toNotionPropertiesWithSchema(withName, dbSchema);
     try {
       const propKeys = Object.keys(properties);
