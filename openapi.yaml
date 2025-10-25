@@ -200,16 +200,36 @@ paths:
           application/json:
             schema:
               type: object
+              description: "Flexible body. Supports properties, JSON-in-content, or top-level fields."
+              properties:
+                target:
+                  type: string
+                  enum: [db, update, page]
+                  description: "Operation type. db=create in database, update=update page, page=create child page."
+                database_id:
+                  type: string
+                  description: "Database ID (required when target=db). Accepts full URL or 32-char ID."
+                page_id:
+                  type: string
+                  description: "Page ID (required when target=update or target=page)."
+                title:
+                  type: string
+                  description: "Page title (optional)."
+                request_id:
+                  type: string
+                  description: "Optional request correlation id; echoed in responses."
+                properties:
+                  type: object
+                  additionalProperties: true
+                  description: "Flat key-value pairs for page properties (preferred)."
+                content:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        $ref: '#/components/schemas/BlockInput'
+                  description: "Either blocks or a JSON string containing properties. JSON is parsed into properties."
               additionalProperties: true
-              description: |
-                Flexible body. Recommended minimal keys:
-                - target: "db" | "update" | "page"
-                - database_id (when target=db) or page_id (when target=update/page)
-                - title (optional)
-                - EITHER:
-                  • properties: { "Status":"Active", ... } (preferred)
-                  • OR put the same JSON inside content as a string
-                  • OR send the property keys at the top-level
             examples:
               update_with_json_in_content:
                 summary: Update using JSON in content
