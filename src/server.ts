@@ -24,6 +24,66 @@ import morgan from "morgan";
 import { WritePayload as WritePayloadSchema, QueryPayload as QueryPayloadSchema, CreateDatabasePayload as CreateDatabasePayloadSchema, UpdateDatabasePayload as UpdateDatabasePayloadSchema } from "./schema.js";
 import { handleWrite, handleQuery, handleCreateDatabase, handleUpdateDatabase } from "./notion.js";
 
+// Database aliases - map friendly names to database IDs
+// Can be configured via environment variable NOTION_DB_ALIASES (JSON format)
+const DB_ALIASES: Record<string, string> = (() => {
+  const envAliases = process.env.NOTION_DB_ALIASES;
+  if (envAliases) {
+    try {
+      return JSON.parse(envAliases);
+    } catch (err) {
+      console.warn("Failed to parse NOTION_DB_ALIASES, using defaults");
+    }
+  }
+  return {
+    // Main databases
+    "marketing_projects_2025_q": "2920cf20-4ff7-80e3-a188-000bb0e7700e",
+    "weekly_poc_reports": "c64e730c-5cb2-46f6-b379-792b5591e33e",
+    "poc_kpi_tracking": "9bbfe462-bfd2-4628-85ad-d5df3e054154",
+    "poc_implementation_tasks": "edc3b1cf-482c-4f5f-849d-48f5a6bffb1a",
+    "microinfluencer_tracker_2025_api": "b4cfbb31-d31e-47a4-93eb-cc7f56e76bef",
+    "onboarding": "2950cf20-4ff7-80ff-b640-000bc869f518",
+    "couchloop_launch_content_tracker": "2950cf20-4ff7-81f1-96c7-000bfdf5a849",
+    "social_media_log_in_info": "2770cf20-4ff7-8078-bf91-000be93d803c",
+    "master_tasks_db": "23e0cf20-4ff7-8028-8117-000bafba25af",
+    "therapist_contact_directory": "28c0cf20-4ff7-8043-9675-000b886945b5",
+    "okrs_2025_master": "24c0cf20-4ff7-81c2-80e1-000b3fa98e6f",
+    "projects_epics_db": "23e0cf20-4ff7-802b-ac37-000b34ad3d7b",
+    "software_engineering_ats": "2730cf20-4ff7-807c-a0aa-000bacf9ccfd",
+    "meeting_notes_db": "23e0cf20-4ff7-80a2-864e-000b0d0f3b84",
+    "master_content_db": "2820cf20-4ff7-80bd-8669-000bf38f429b",
+    "social_accounts": "2820cf20-4ff7-8075-a31c-000bda1911c2",
+    "tasks_for_this_project": "92b97b36-2903-4b8b-9d3a-3b166560ed75",
+    "docs_for_this_project": "1657708c-5ccf-4292-ae4a-f65019b39905",
+    "competitor_matrix": "2800cf20-4ff7-8094-9bd8-000b979fb0b3",
+    "content_strategy_upload_uuid": "27f0cf20-4ff7-8094-a8ad-000b2ecdf74d",
+    "content_ideas": "23e0cf20-4ff7-8071-9843-000baa12b285",
+    "schedule": "2640cf20-4ff7-8032-a30b-000b3970c371",
+    "decisions": "24c0cf20-4ff7-8165-94ae-000b620e98da",
+    "content_schedule": "2640cf20-4ff7-8022-a14b-000b11e2f9ae",
+    "app_testing_tracker": "25e0cf20-4ff7-803f-a279-000b54017bdb",
+    "crisis_management_example_log": "25e0cf20-4ff7-80a8-a1b3-000b4214a1b7",
+    "feedback_database": "24a0cf20-4ff7-808d-a389-000b5bea7cc8",
+    "internal_feedback_form": "24a0cf20-4ff7-80ce-9abe-000b453efe8d",
+    
+    // Legacy aliases for backward compatibility
+    "influencers": "b4cfbb31-d31e-47a4-93eb-cc7f56e76bef", // microinfluencer_tracker_2025_api
+    "poc_tasks": "edc3b1cf-482c-4f5f-849d-48f5a6bffb1a", // poc_implementation_tasks
+    "default": process.env.NOTION_DB_ID || "2920cf20-4ff7-80e3-a188-000bb0e7700e" // marketing_projects_2025_q
+  };
+})();
+
+// Resolve database alias to actual ID
+function resolveDatabaseAlias(input?: string): string | undefined {
+  if (!input) return undefined;
+  // If it's already a valid UUID format, return as-is
+  if (/^[a-f0-9]{32}$/i.test(input.replace(/-/g, ''))) {
+    return input;
+  }
+  // Otherwise, check if it's an alias
+  return DB_ALIASES[input.toLowerCase()] || input;
+}
+
 const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json({ limit: "1mb" }));
@@ -152,6 +212,13 @@ function extractNotionId(input?: string) {
 app.post("/chatgpt/notion-write", async (req: Request, res: Response) => {
   // Allow NOTION_DB_URL/NOTION_DB_ID env fallback for target=db
   const input = { ...(req.body ?? {}) } as any;
+  
+  // Resolve database alias to actual ID (e.g., "influencers" -> "2950cf20...")
+  if (input.database_id) {
+    const resolved = resolveDatabaseAlias(input.database_id);
+    if (resolved) input.database_id = resolved;
+  }
+  
   // Normalize IDs: accept Notion URLs or raw IDs and hyphenate
   if (input.database_id) {
     const inferred = extractNotionId(input.database_id);
@@ -294,6 +361,12 @@ app.post("/chatgpt/notion-write-compat", async (req: Request, res: Response) => 
   // Start with a shallow copy of the body
   const input = { ...(req.body ?? {}) } as any;
 
+  // Resolve database alias first
+  if (input.database_id) {
+    const resolved = resolveDatabaseAlias(input.database_id);
+    if (resolved) input.database_id = resolved;
+  }
+
   // Normalize IDs
   if (input.database_id) {
     const inferred = extractNotionId(input.database_id);
@@ -366,6 +439,13 @@ app.post("/chatgpt/notion-write-compat", async (req: Request, res: Response) => 
 // Main query endpoint (safe read-only)
 app.post("/chatgpt/notion-query", async (req: Request, res: Response) => {
   const input = { ...(req.body ?? {}) } as any;
+  
+  // Resolve database alias first
+  if (input.database_id) {
+    const resolved = resolveDatabaseAlias(input.database_id);
+    if (resolved) input.database_id = resolved;
+  }
+  
   if (input.database_id) {
     const inferred = extractNotionId(input.database_id);
     if (inferred) input.database_id = inferred;
@@ -430,6 +510,13 @@ app.post(["/notionQuery", "/chatgpt/notionQuery"], async (req: Request, res: Res
 // Create database endpoint (consequential)
 app.post("/chatgpt/notion-create-database", async (req: Request, res: Response) => {
   const input = { ...(req.body ?? {}) } as any;
+  
+  // Resolve parent page alias
+  if (input.parent_page_id) {
+    const resolved = resolveDatabaseAlias(input.parent_page_id);
+    if (resolved) input.parent_page_id = resolved;
+  }
+  
   if (input.parent_page_id) {
     const inferred = extractNotionId(input.parent_page_id);
     if (inferred) input.parent_page_id = inferred;
@@ -456,6 +543,16 @@ app.post("/chatgpt/notion-create-database", async (req: Request, res: Response) 
 app.post("/chatgpt/notion-update-database", async (req: Request, res: Response) => {
   const input = { ...(req.body ?? {}) } as any;
   console.log("[UPDATE-DB] Received payload:", JSON.stringify(input, null, 2));
+  
+  // Resolve database alias first
+  if (input.database_id) {
+    const resolved = resolveDatabaseAlias(input.database_id);
+    if (resolved) input.database_id = resolved;
+  } else if (input.database_url) {
+    const resolved = resolveDatabaseAlias(input.database_url);
+    if (resolved) input.database_id = resolved;
+  }
+  
   // Accept full Notion URL or raw 32-char id for database_id and normalize to hyphenated id
   if (input.database_id) {
     const inferred = extractNotionId(input.database_id);

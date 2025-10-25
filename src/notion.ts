@@ -434,8 +434,11 @@ export async function handleWrite(payload: WritePayload) {
 
 export async function handleQuery(payload: QueryPayload) {
   const cap = (payload as any).max_results as number | undefined;
-  const pageSize = (payload as any).page_size as number | undefined;
+  const pageSize = Math.min((payload as any).page_size || 20, 100); // Default 20, max 100
   const startCursor = (payload as any).start_cursor as string | undefined;
+  
+  // Set reasonable default max to prevent overwhelming responses
+  const effectiveMax = cap || 50; // Default to 50 results max
 
   if (payload.mode === "search") {
     const results: any[] = [];
@@ -454,10 +457,10 @@ export async function handleQuery(payload: QueryPayload) {
       if (Array.isArray(res.results)) results.push(...res.results);
       next = res.next_cursor ?? null;
       has_more = Boolean(res.has_more && next);
-      if (cap && results.length >= cap) {
+      if (results.length >= effectiveMax) {
         // slice to cap and return with a synthetic next_cursor
-        const sliced = results.slice(0, cap);
-        return { mode: "search", results: sliced, has_more: has_more || results.length > cap, next_cursor: next };
+        const sliced = results.slice(0, effectiveMax);
+        return { mode: "search", results: sliced, has_more: has_more || results.length > effectiveMax, next_cursor: next };
       }
       if (!has_more) {
         return { mode: "search", results, has_more: false, next_cursor: null };
@@ -489,9 +492,9 @@ export async function handleQuery(payload: QueryPayload) {
       if (Array.isArray(res.results)) results.push(...res.results);
       next = res.next_cursor ?? null;
       has_more = Boolean(res.has_more && next);
-      if (cap && results.length >= cap) {
-        const sliced = results.slice(0, cap);
-        return { mode: "db_query", results: sliced, has_more: has_more || results.length > cap, next_cursor: next };
+      if (results.length >= effectiveMax) {
+        const sliced = results.slice(0, effectiveMax);
+        return { mode: "db_query", results: sliced, has_more: has_more || results.length > effectiveMax, next_cursor: next };
       }
       if (!has_more) {
         return { mode: "db_query", results, has_more: false, next_cursor: null };
