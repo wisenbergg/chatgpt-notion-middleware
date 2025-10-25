@@ -262,8 +262,12 @@ export async function handleWrite(payload: WritePayload) {
     // Step 2 of 2025-09-03 upgrade: Use data_source_id instead of database_id
     const databaseId = (payload as any).database_id!;
     const dataSourceId = await getPrimaryDataSourceId(databaseId);
-    
-    const properties = toNotionProperties({ Name: title, ...(payload as any).properties });
+    // Fetch database schema and perform schema-aware conversion for all properties
+    const dbSchema = await getDatabaseSchema(databaseId);
+    const properties = toNotionPropertiesWithSchema(
+      { Name: title, ...(payload as any).properties },
+      dbSchema
+    );
     
     // Use notion.request for 2025-09-03 API with data_source_id
     const res: any = await (getNotionClient() as any).request({
@@ -290,6 +294,7 @@ export async function handleWrite(payload: WritePayload) {
   if (payload.target === "page") {
     const res = await getNotionClient().pages.create({
       parent: { page_id: (payload as any).page_id! },
+      // Child pages are not in a database; use heuristic conversion
       properties: toNotionProperties({ Name: title, ...(payload as any).properties }),
     });
     const pageId = res.id;
