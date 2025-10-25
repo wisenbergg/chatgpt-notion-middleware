@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.5
+  version: 5.3.6
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
     
@@ -364,7 +364,7 @@ paths:
                 value:
                   mode: "search"
                   query: "API Partners"
-                  object: "database"
+                  object: "data_source"
               query_database:
                 summary: Get all pages from a database
                 value:
@@ -505,7 +505,8 @@ components:
           type: string
         object:
           type: string
-          enum: [page, database]
+          enum: [page, data_source]
+          description: "Use 'data_source' to search for databases (changed from 'database' in API 2025-09-03)"
         # db_query and data_source_query
         database_id:
           type: string
