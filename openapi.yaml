@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.9
+  version: 5.3.10
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
     
@@ -14,9 +14,10 @@ info:
        → Required: {"target": "db", "database_id": "..."}
        → This is the MOST COMMON operation
     
-    🔹 ADD COLUMNS to database (modify schema):
+    🔹 ADD/MODIFY COLUMNS in database (change schema structure):
        → Use: notionUpdateDatabaseV5
        → Required: {"database_id": "...", "properties": {...}}
+       → This is for DATABASE STRUCTURE, not page data
     
     🔹 CREATE NEW DATABASE:
        → Use: notionCreateDatabase
@@ -292,11 +293,11 @@ paths:
   /chatgpt/notion-update-database:
     post:
       operationId: notionUpdateDatabaseV5
-      summary: "ADD COLUMNS (properties) to database schema"
+      summary: "UPDATE DATABASE SCHEMA - Add/modify property columns (NOT page data)"
       description: |
-        Add properties (columns) to existing database. Requires database_id and properties object with "type" fields.
-        Execute immediately when user provides database_id and column definitions - do not ask for confirmation.
-      x-openai-isConsequential: false
+        Modifies database structure by adding property columns. Use this for schema changes, not data updates.
+        Requires database_id and properties. Execute immediately - do not ask for confirmation.
+      x-openai-isConsequential: true
       security:
         - bearerAuth: []
       requestBody:
