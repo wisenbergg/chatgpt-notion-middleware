@@ -175,27 +175,69 @@ Use the notionWrite action with:
 
 ## 📋 Property Value Types
 
-The API automatically detects property types based on the values you provide:
+**⚡ CRITICAL: The middleware fetches the database schema and auto-converts property types.**
 
-### Auto-Detected Types
+When creating pages in a database (`target: "db"`), the middleware automatically:
+1. Retrieves the database schema
+2. Looks up each property's actual type from the schema
+3. Converts your flat values to the proper Notion format
 
-| Value Type | Notion Property | Example |
-|------------|----------------|---------|
-| String | `rich_text` | `"Hello World"` |
-| Number | `number` | `42` or `3.14` |
-| Boolean | `checkbox` | `true` or `false` |
-| Array of strings | `multi_select` | `["Tag1", "Tag2"]` |
+### Send FLAT Values - Middleware Converts Automatically
 
-### Special Property Formats
+**✅ CORRECT - Send flat values in properties object:**
+```json
+{
+  "target": "db",
+  "database_id": "abc-123",
+  "title": "New Page",
+  "properties": {
+    "Email": "user@example.com",
+    "Status": "Active",
+    "Priority": "High",
+    "Tags": ["Urgent", "Review"],
+    "Due Date": "2025-10-31",
+    "Completed": true
+  }
+}
+```
 
-| Property | Format | Example |
-|----------|--------|---------|
-| Title | Use `"title"` parameter or `"Name"` property | `"title": "My Page"` |
-| Status | String value | `"Status": "In Progress"` |
-| People | Email with @ prefix | `"Assignee": "@user@company.com"` |
-| Date | ISO date string | `"Due Date": "2025-10-31"` |
-| Select | String value | `"Priority": "High"` |
-| Multi-select | Array of strings | `"Tags": ["Urgent", "Review"]` |
+**❌ INCORRECT - Don't send nested Notion objects:**
+```json
+{
+  "properties": {
+    "Email": {"email": "user@example.com"},  // ❌ Don't do this
+    "Status": {"status": {"name": "Active"}} // ❌ Don't do this
+  }
+}
+```
+
+### How Schema-Aware Conversion Works
+
+1. **You send:** `{"properties": {"Email": "user@example.com"}}`
+2. **Middleware fetches:** Database schema from Notion
+3. **Middleware finds:** "Email" property is type `email` in the schema
+4. **Middleware converts:** `"user@example.com"` → `{"email": "user@example.com"}`
+5. **Notion receives:** Properly formatted property object
+
+### Automatic Type Conversions (Schema-Aware)
+
+| Property Type | You Send (Flat) | Middleware Converts To |
+|--------------|-----------------|------------------------|
+| `email` | `"user@example.com"` | `{"email": "user@example.com"}` |
+| `select` | `"Active"` | `{"select": {"name": "Active"}}` |
+| `multi_select` | `["Tag1", "Tag2"]` | `{"multi_select": [{"name": "Tag1"}, {"name": "Tag2"}]}` |
+| `status` | `"Done"` | `{"status": {"name": "Done"}}` |
+| `date` | `"2025-10-24"` | `{"date": {"start": "2025-10-24"}}` |
+| `number` | `42` or `3.14` | `{"number": 42}` |
+| `checkbox` | `true` or `false` | `{"checkbox": true}` |
+| `rich_text` | `"Hello World"` | `{"rich_text": [{"text": {"content": "Hello World"}}]}` |
+| `url` | `"https://example.com"` | `{"url": "https://example.com"}` |
+| `phone_number` | `"+1-555-0123"` | `{"phone_number": "+1-555-0123"}` |
+| `people` | ⚠️ **User IDs only** | `{"people": [{"id": "user-id"}]}` |
+
+**⚠️ People Fields:** Cannot convert email strings to user IDs. Email strings will be **SKIPPED**. You must provide Notion user IDs for people fields.
+
+**📝 Note:** Schema-aware conversion only applies when creating pages in databases (`target: "db"`). For child pages (`target: "page"`), properties are passed through as-is since child pages don't have database schemas
 
 ---
 

@@ -170,26 +170,67 @@ Use the notionWrite action with:
 
 ## 📋 Property Value Types
 
-The API automatically detects property types based on the values you provide:
+**⚡ CRITICAL: The middleware fetches the database schema and auto-converts property types.**
 
-### Auto-Detected Types
+### Send FLAT Values - Middleware Converts Automatically
 
-| Value Type | Notion Property | Example |
-|------------|-----------------|---------|
-| String | `rich_text` | `"Hello World"` |
-| Number | `number` | `42` or `3.14` |
-| Boolean | `checkbox` | `true` or `false` |
-| Array of strings | `multi_select` | `["Tag1", "Tag2"]` |
+**✅ CORRECT - Send simple flat values:**
+```json
+{
+  "properties": {
+    "Email": "user@example.com",
+    "Status": "Active", 
+    "Priority": "High",
+    "Count": 42,
+    "Done": true,
+    "Start Date": "2025-10-24",
+    "Tags": ["Tag1", "Tag2"]
+  }
+}
+```
+
+**❌ WRONG - Don't send nested Notion objects:**
+```json
+{
+  "properties": {
+    "Email": {"email": "user@example.com"},
+    "Status": {"select": {"name": "Active"}}
+  }
+}
+```
+
+### How Schema-Aware Conversion Works
+
+The middleware:
+1. Fetches the page to get its database ID
+2. Retrieves the database schema with all property types
+3. Converts your flat values to proper Notion property formats
+
+### Automatic Type Conversions (Schema-Aware)
+
+| Property Type in Database | Send This | Middleware Converts To |
+|---------------------------|-----------|------------------------|
+| **email** | `"user@example.com"` | `{email: "user@example.com"}` |
+| **select** | `"Active"` | `{select: {name: "Active"}}` |
+| **multi_select** | `["Tag1", "Tag2"]` | `{multi_select: [{name:"Tag1"}, {name:"Tag2"}]}` |
+| **status** | `"In Progress"` | `{status: {name: "In Progress"}}` |
+| **date** | `"2025-10-24"` | `{date: {start: "2025-10-24"}}` |
+| **number** | `42` | `{number: 42}` |
+| **checkbox** | `true` | `{checkbox: true}` |
+| **rich_text** | `"Hello"` | `{rich_text: [{text: {content: "Hello"}}]}` |
+| **url** | `"https://example.com"` | `{url: "https://example.com"}` |
+| **phone_number** | `"555-1234"` | `{phone_number: "555-1234"}` |
+| **people** | User IDs required | `{people: [{id: "user-id"}]}` |
 
 ### Special Property Formats
 
-| Property | Format | Example |
-|----------|--------|---------|
-| Status | String value | `"Status": "In Progress"` |
-| People | Email with @ prefix | `"Assignee": "@user@company.com"` |
-| Date | ISO date string | `"Due Date": "2025-10-31"` |
-| Select | String value | `"Priority": "High"` |
-| Multi-select | Array of strings | `"Tags": ["Urgent", "Review"]` |
+| Property | What to Send | Notes |
+|----------|--------------|-------|
+| Status | String value: `"Status": "In Progress"` | Must match existing status option |
+| People | ⚠️ User IDs only | Email strings will be SKIPPED - query for user IDs first |
+| Date | ISO string: `"Due Date": "2025-10-31"` | Can include time: `"2025-10-31T14:30:00"` |
+| Select | String value: `"Priority": "High"` | Must match existing select option |
+| Multi-select | Array: `"Tags": ["Urgent", "Review"]` | All values must exist as options |
 
 ---
 

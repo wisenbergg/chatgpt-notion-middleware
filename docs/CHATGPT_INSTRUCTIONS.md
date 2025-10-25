@@ -22,15 +22,21 @@ CREATE DATABASE: notionCreateDatabase + {"title":"...","properties":{...}}
 ## A. CREATE PAGE (MOST COMMON)
 Action: `notionWrite` with `target:"db"`
 ```json
-{"target":"db","database_id":"[ID]","title":"Title","properties":{"Status":"Active","Count":42},"content":"text"}
+{"target":"db","database_id":"[ID]","title":"Title","properties":{"Status":"Active","Count":42,"Email":"user@example.com"},"content":"text"}
 ```
 With blocks:
 ```json
 {"target":"db","database_id":"[ID]","title":"Title","properties":{"Status":"Active"},"content":[{"type":"paragraph","text":"Content"}]}
 ```
-**Auto-detect:** String→rich_text, Number→number, Boolean→checkbox, Array→multi_select
+**⚡ CRITICAL - SEND FLAT VALUES:** Middleware fetches database schema and auto-converts property types.
+Send: `{"Email":"user@example.com","Status":"Active","Count":42,"Done":true,"Date":"2025-10-24"}`
+Middleware converts to: email→{email:"..."}, select→{select:{name:"..."}}, number→{number:42}, checkbox→{checkbox:true}, date→{date:{start:"..."}}
+
+**NEVER send nested objects:** ❌ `{"Email":{"email":"..."}}`  ✅ `{"Email":"user@example.com"}`
+
+**Auto-conversions (schema-aware):** String→rich_text/email/url/phone/select, Number→number, Boolean→checkbox, Date string→date, Array→multi_select
 **Blocks:** paragraph, heading_1/2/3, bulleted_list_item, numbered_list_item, to_do, quote, callout, toggle
-**Required:** target="db", database_id. Dates: ISO 8601. People: email format.
+**Required:** target="db", database_id. Dates: ISO 8601. People: user IDs (emails will be skipped).
 
 ## B. ADD COLUMNS
 Action: `notionUpdateDatabaseV5` (does NOT create pages)
@@ -44,9 +50,15 @@ Action: `notionUpdateDatabaseV5` (does NOT create pages)
 ## C. UPDATE PAGE
 Action: `notionWrite` with `target:"update"`
 ```json
-{"target":"update","page_id":"[ID]","properties":{"Status":"Done"},"content":"notes"}
+{"target":"update","page_id":"[ID]","properties":{"Status":"Done","Email":"new@email.com","Count":100},"content":"notes"}
 ```
-⚠️ Content APPENDS (not replaces). Only specified properties update.
+**⚡ CRITICAL - SEND FLAT VALUES IN PROPERTIES OBJECT:** Middleware fetches page's database schema and auto-converts.
+Send: `{"properties":{"Email":"user@example.com","Status":"Active"}}`
+Middleware handles conversion to proper Notion property formats automatically.
+
+**NEVER send nested objects:** ❌ `{"properties":{"Email":{"email":"..."}}}` ✅ `{"properties":{"Email":"user@example.com"}}`
+
+⚠️ Content APPENDS (not replaces). Only specified properties update. Schema conversion applies if page is in database.
 
 ## D. QUERY DATA (READ-ONLY)
 Action: `notionQuery`
