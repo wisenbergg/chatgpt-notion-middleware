@@ -42,41 +42,7 @@ paths:
       operationId: notionWrite
       summary: "CREATE PAGES in databases OR update existing pages"
       description: |
-        PRIMARY USE: Create new pages (records/rows) in a Notion database.
-        
-        REQUIRED FIELDS for creating in database:
-        - target: "db"
-        - database_id: The database ID where you want to create the page
-        
-        ⚡ PROPERTY FORMAT - SEND SIMPLE FLAT KEY-VALUE PAIRS:
-        The middleware automatically converts your simple values to proper Notion formats.
-        Just send: {"Email": "user@example.com", "Status": "Active", "Count": 42, "Done": true}
-        The middleware handles conversion to Notion's property schemas automatically.
-        
-        ⚠️ AUTO-CONVERSION ONLY FOR DATABASE PAGES:
-        Schema-aware conversion applies ONLY to target="db" and target="update" (database pages).
-        For target="page" (child pages, not in database), use simple values without schema conversion.
-        
-        Supported auto-conversions (for database pages):
-        - Strings → rich_text, email, url, phone_number, or select (based on schema)
-        - Numbers → number properties
-        - Booleans → checkbox properties
-        - Date strings (YYYY-MM-DD) → date properties
-        - Arrays of strings → multi_select properties
-        
-        ⚠️ PEOPLE FIELDS: Cannot convert email strings to user IDs.
-        If you send {"Contact Person": "email@example.com"}, the field will be SKIPPED.
-        People fields require Notion user IDs - query users first or leave empty.
-        
-        ❌ DO NOT send nested Notion property objects like {"Email": {"email": "..."}}
-        ✅ DO send flat values like {"Email": "user@example.com"}
-        
-        EXAMPLES:
-        1. To create a page in database "abc-123": {"target": "db", "database_id": "abc-123", "title": "My Page"}
-        2. To update page "xyz-789": {"target": "update", "page_id": "xyz-789", "properties": {"Status": "Done", "Email": "new@email.com"}}
-        3. To create child page under "parent-123": {"target": "page", "page_id": "parent-123", "title": "Child"}
-        
-        This action DOES support creating pages in databases. Always use target="db" with database_id.
+        Create pages in databases (target="db") or update existing pages (target="update"). Send FLAT property values - middleware auto-converts to Notion formats using database schema.
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
@@ -218,35 +184,7 @@ paths:
       operationId: notionCreateDatabase
       summary: "CREATE a brand new Notion database"
       description: |
-        Create a completely new database in your Notion workspace.
-        
-        REQUIRED FIELDS:
-        - title: Name of the database
-        - properties: Must include at least one property with type="title"
-        - EITHER parent_page_id OR workspace=true
-        
-        ⚠️ NOTE: This endpoint creates DATABASE SCHEMA (structure/columns).
-        Properties here are DEFINITIONS with explicit "type" field - NOT flat values.
-        
-        ✅ CORRECT (property definitions for schema):
-        {
-          "Name": {"type": "title"},
-          "Email": {"type": "email"},
-          "Status": {"type": "select", "options": ["Active", "Inactive"]}
-        }
-        
-        EXAMPLE:
-        {
-          "parent_page_id": "page-abc-123",
-          "title": "Customer CRM",
-          "properties": {
-            "Name": {"type": "title"},
-            "Email": {"type": "email"},
-            "Status": {"type": "select", "options": ["Active", "Inactive"]}
-          }
-        }
-        
-        After creating database, use notionWrite with target="db" to add pages to it.
+        Create a new database with property definitions (not data). Requires title, properties with "type" fields, and either parent_page_id or workspace=true.
       x-openai-isConsequential: true
       security:
         - bearerAuth: []
@@ -277,35 +215,7 @@ paths:
       operationId: notionUpdateDatabaseV5
       summary: "ADD COLUMNS (properties) to database schema"
       description: |
-        Add new properties (columns/fields) to an existing Notion database.
-        
-        REQUIRED FIELDS:
-        - database_id: The database to modify
-        - properties: Object with property definitions (each MUST have "type" field)
-        
-        ⚠️ NOTE: This endpoint modifies DATABASE SCHEMA (columns/fields).
-        Properties here are DEFINITIONS with explicit "type" field - NOT flat values.
-        
-        ✅ CORRECT (property definitions for schema):
-        {
-          "Notes": {"type": "rich_text"},
-          "Priority": {"type": "select", "options": ["High", "Medium", "Low"]},
-          "Count": {"type": "number"}
-        }
-        
-        ❌ For adding DATA (records/rows), use notionWrite with flat values instead.
-        
-        EXAMPLE: To add a "Notes" text field and "Priority" select field:
-        {
-          "database_id": "abc-123",
-          "properties": {
-            "Notes": {"type": "rich_text"},
-            "Priority": {"type": "select", "options": ["High", "Medium", "Low"]}
-          }
-        }
-        
-        This ADDS properties to the schema. It does NOT create pages/records.
-        To create pages, use notionWrite with target="db".
+        Add properties (columns) to existing database. Requires database_id and properties object with "type" fields. This modifies schema, not data.
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
@@ -359,21 +269,7 @@ paths:
       operationId: notionQuery
       summary: "SEARCH and RETRIEVE data from Notion"
       description: |
-        Query and retrieve data from your Notion workspace.
-        
-        COMMON MODES:
-        - "search" - Search entire workspace for pages/databases
-        - "db_query" - Get all pages from a specific database (with optional filters)
-        - "page_get" - Retrieve a specific page by ID
-        - "database_get" - Get database schema and properties
-        
-        EXAMPLE to get all pages from database:
-        {"mode": "db_query", "database_id": "abc-123"}
-        
-        EXAMPLE to search for pages:
-        {"mode": "search", "query": "project plan"}
-        
-        This is READ-ONLY. To create or modify data, use notionWrite or notionUpdateDatabaseV5.
+        Query Notion workspace. Common modes: "search" (workspace search), "db_query" (get database pages), "page_get" (get page), "database_get" (get schema).
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
