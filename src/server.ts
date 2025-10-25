@@ -179,7 +179,9 @@ app.post("/chatgpt/notion-write", async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("Notion write failed:", err?.message, err?.body ?? "");
     const status = (err?.status as number) || 500;
-    res.status(status).json({ ok: false, error: err?.message || "Internal error" });
+    res
+      .status(status)
+      .json({ ok: false, error: err?.message || "Internal error", request_id: parse.data.request_id ?? null });
   }
 });
 
@@ -212,7 +214,9 @@ app.post(["/notionWrite", "/chatgpt/notionWrite"], async (req: Request, res: Res
   } catch (err: any) {
     console.error("Notion write failed:", err?.message, err?.body ?? "");
     const status = (err?.status as number) || 500;
-    res.status(status).json({ ok: false, error: err?.message || "Internal error" });
+    res
+      .status(status)
+      .json({ ok: false, error: err?.message || "Internal error", request_id: parse.data.request_id ?? null });
   }
 });
 

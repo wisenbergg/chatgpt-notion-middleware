@@ -291,6 +291,10 @@ export async function handleWrite(payload: WritePayload) {
     const withName = { ...(rawProps || {}) } as Record<string, any>;
     if (withName.Name === undefined) withName.Name = title;
     const properties = toNotionPropertiesWithSchema(withName, dbSchema);
+    try {
+      const propKeys = Object.keys(properties);
+      console.log(`🧩 Mapped properties (${propKeys.length}):`, propKeys);
+    } catch {}
     
     // Use notion.request for 2025-09-03 API with data_source_id
     const res: any = await (getNotionClient() as any).request({
