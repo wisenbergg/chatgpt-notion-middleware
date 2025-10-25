@@ -40,10 +40,15 @@ async function resolveDataSourceId(payload: any): Promise<string | undefined> {
       try {
         console.log(`🔍 Auto-resolving: database_id → data_source_id...`);
         const db: any = await getNotionClient().databases.retrieve({ database_id: dbId });
-        dataSourceId = db.data_source_id;
+        
+        // In Notion API 2025-09-03, data_source_id might be null for some databases
+        // In that case, the database_id IS the data_source_id
+        dataSourceId = db.data_source_id || dbId;
         console.log(`✅ Resolved data_source_id: ${dataSourceId}`);
       } catch (err: any) {
         console.warn(`⚠️  Failed to resolve data_source_id from database_id: ${err.message}`);
+        // If database lookup fails, fall back to using database_id as data_source_id
+        dataSourceId = dbId;
       }
     }
   }
