@@ -24,6 +24,9 @@ export const WritePayload = z
     target: z.enum(["db", "update", "page"]),
     database_id: z.string().optional(),
     page_id: z.string().optional(),
+    parent_page_id: z.string().optional(), // Alias for page_id when target="page"
+    parentPageId: z.string().optional(), // Another alias
+    parent: z.object({ page_id: z.string() }).optional(), // Nested parent format
     // A friendly title; if omitted, will try properties.Name or "Untitled"
     title: z.string().optional(),
     // Simple properties: strings/numbers/bools; or pass raw Notion property objects
@@ -47,10 +50,10 @@ export const WritePayload = z
         message: "page_id is required when target=update",
       });
     }
-    if (val.target === "page" && !val.page_id) {
+    if (val.target === "page" && !val.page_id && !val.parent_page_id && !val.parentPageId && !val.parent?.page_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "page_id (parent) is required when target=page",
+        message: "page_id, parent_page_id, parentPageId, or parent.page_id is required when target=page",
       });
     }
   });
@@ -93,7 +96,7 @@ export const QueryPayload = z
     // data_source_get, data_source_query, data_source_update, and data_source_templates_list
     data_source_id: z.string().optional(),
     properties: z.record(z.any()).optional(),
-    title: z.array(z.record(z.any())).optional(),
+    title: z.union([z.string(), z.array(z.record(z.any()))]).optional(), // Accept string OR array - will auto-convert
     icon: z.record(z.any()).optional(),
     in_trash: z.boolean().optional(),
     parent: z.object({
@@ -112,10 +115,10 @@ export const QueryPayload = z
   })
   .strict()
   .superRefine((val: any, ctx: any) => {
-    if (val.mode === "db_query" && !val.database_id) {
+    if (val.mode === "db_query" && !val.database_id && !val.data_source_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "database_id is required when mode=db_query",
+        message: "database_id or data_source_id is required when mode=db_query",
       });
     }
     if (val.mode === "page_get" && !val.page_id) {
@@ -124,34 +127,34 @@ export const QueryPayload = z
         message: "page_id is required when mode=page_get",
       });
     }
-    if (val.mode === "database_get" && !val.database_id) {
+    if (val.mode === "database_get" && !val.database_id && !val.data_source_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "database_id is required when mode=database_get",
+        message: "database_id or data_source_id is required when mode=database_get",
       });
     }
-    if (val.mode === "data_source_get" && !val.data_source_id) {
+    if (val.mode === "data_source_get" && !val.data_source_id && !val.database_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "data_source_id is required when mode=data_source_get",
+        message: "data_source_id or database_id is required when mode=data_source_get",
       });
     }
-    if (val.mode === "data_source_query" && !val.data_source_id) {
+    if (val.mode === "data_source_query" && !val.data_source_id && !val.database_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "data_source_id is required when mode=data_source_query",
+        message: "data_source_id or database_id is required when mode=data_source_query",
       });
     }
-    if (val.mode === "data_source_update" && !val.data_source_id) {
+    if (val.mode === "data_source_update" && !val.data_source_id && !val.database_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "data_source_id is required when mode=data_source_update",
+        message: "data_source_id or database_id is required when mode=data_source_update",
       });
     }
-    if (val.mode === "data_source_templates_list" && !val.data_source_id) {
+    if (val.mode === "data_source_templates_list" && !val.data_source_id && !val.database_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "data_source_id is required when mode=data_source_templates_list",
+        message: "data_source_id or database_id is required when mode=data_source_templates_list",
       });
     }
     if (val.mode === "block_get" && !val.block_id) {
@@ -210,7 +213,11 @@ export type QueryPayload = z.infer<typeof QueryPayload>;
 export const CreateDatabasePayload = z
   .object({
     // Parent page under which the database will be created. If omitted and `workspace` is true, creates at workspace root.
+    // Accepts: parent_page_id, parentPageId, page_id, or parent.page_id (will auto-normalize)
     parent_page_id: z.string().min(1).optional(),
+    parentPageId: z.string().min(1).optional(), // Alias for parent_page_id
+    page_id: z.string().min(1).optional(), // Alias for parent_page_id when used as parent
+    parent: z.object({ page_id: z.string().min(1) }).optional(), // Nested parent format
     // Create at workspace root when true
     workspace: z.boolean().optional(),
     // Database title
@@ -273,13 +280,13 @@ export const CreateDatabasePayload = z
   })
   .strict()
   .superRefine((val: any, ctx: any) => {
-    const hasPage = Boolean(val.parent_page_id);
+    const hasPage = Boolean(val.parent_page_id || val.parentPageId || val.page_id || val.parent?.page_id);
     const useWorkspace = Boolean(val.workspace);
     if (!hasPage && !useWorkspace) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Provide parent_page_id or set workspace=true" });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Provide parent_page_id (or alias) or set workspace=true" });
     }
     if (hasPage && useWorkspace) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Specify either parent_page_id or workspace=true, not both" });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Specify either parent_page_id (or alias) or workspace=true, not both" });
     }
   });
 
