@@ -941,10 +941,11 @@ export async function handleQuery(payload: QueryPayload) {
     console.log("🔧 Updating data source schema with ID:", dataSourceId);
     console.log("📋 Property schema changes:", JSON.stringify(requestBody, null, 2));
 
-    // PATCH request to update data source properties (schema)
+    // For Notion API 2025-09-03: Use databases endpoint to update title/properties
+    // The data_sources endpoint is only for querying, not updating
     const res: any = await (getNotionClient() as any).request({
       method: 'PATCH',
-      path: `data_sources/${extractNotionId(dataSourceId)}`,
+      path: `databases/${extractNotionId(dataSourceId)}`,
       body: requestBody
     });
 
