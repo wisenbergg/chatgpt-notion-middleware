@@ -279,8 +279,9 @@ export async function handleWrite(payload: WritePayload) {
     // Fetch database schema and perform schema-aware conversion for all properties
     const dbSchema = await getDatabaseSchema(databaseId);
     // Normalize properties: merge top-level keys that match schema into properties, then filter empties
-    const reserved = new Set(["target", "database_id", "page_id", "title", "content", "request_id"]);
-    const rawProps: Record<string, any> = { ...(payload as any).properties };
+  const reserved = new Set(["target", "database_id", "page_id", "title", "content", "request_id"]);
+  // Start from properties if present, otherwise from empty object (avoid spreading undefined)
+  const rawProps: Record<string, any> = { ...(((payload as any).properties) || {}) };
     for (const propName of Object.keys(dbSchema)) {
       if (rawProps[propName] === undefined && (payload as any)[propName] !== undefined && !reserved.has(propName)) {
         rawProps[propName] = (payload as any)[propName];
