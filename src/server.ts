@@ -174,6 +174,10 @@ app.post("/chatgpt/notion-write", async (req: Request, res: Response) => {
       .json({ error: "Invalid payload", details: parse.error.flatten() });
   }
   try {
+    try {
+      const propKeys = Object.keys((parse.data as any).properties || {});
+      console.log(`[write] properties_keys=${propKeys.length}`, propKeys.slice(0, 24));
+    } catch {}
     const result = await handleWrite(parse.data);
     res.json({ ok: true, ...result, request_id: parse.data.request_id ?? null });
   } catch (err: any) {

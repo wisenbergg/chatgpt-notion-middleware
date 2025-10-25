@@ -90,6 +90,10 @@ paths:
                     ⚡ THE MIDDLEWARE AUTO-CONVERTS TO PROPER NOTION FORMATS:
                     Just send simple values - the server fetches the database schema and converts automatically.
                     
+                    Tip: If you also include flat fields at the top-level of the body (outside `properties`),
+                    the server will merge any keys that match the database schema into `properties` automatically.
+                    Prefer `properties` for clarity, but both are accepted.
+                    
                     ✅ CORRECT FORMAT (flat values):
                     {
                       "Email": "user@example.com",
