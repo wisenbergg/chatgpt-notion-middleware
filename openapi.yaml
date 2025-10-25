@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.7
+  version: 5.3.8
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
     
@@ -294,7 +294,12 @@ paths:
       operationId: notionUpdateDatabaseV5
       summary: "ADD COLUMNS (properties) to database schema"
       description: |
-        Add properties (columns) to existing database. Requires database_id and properties object with "type" fields. This modifies schema, not data.
+        Add properties (columns) to existing database. Requires database_id and properties object with "type" fields.
+        
+        This modifies database schema (not data). Execute immediately when user provides database_id and column definitions.
+        
+        IMPORTANT: Do not ask for confirmation if user has already specified the database_id and property types.
+        Just execute the call with the provided definitions.
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
@@ -305,6 +310,24 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateDatabasePayload'
             examples:
+              add_multiple_properties:
+                summary: Add multiple columns at once
+                value:
+                  database_id: "123e4567-e89b-12d3-a456-426614174000"
+                  properties:
+                    Task:
+                      type: "title"
+                    Status:
+                      type: "select"
+                      options: ["Not Started", "In Progress", "Done"]
+                    Owner:
+                      type: "people"
+                    Due Date:
+                      type: "date"
+                    Notes:
+                      type: "rich_text"
+                    Last Updated:
+                      type: "last_edited_time"
               add_text_property:
                 summary: Add a text property
                 value:
