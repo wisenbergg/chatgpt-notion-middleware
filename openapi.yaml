@@ -183,6 +183,63 @@ paths:
                   request_id: { type: ["string", "null"] }
         "400":
           description: Invalid payload
+  /chatgpt/notion-write-compat:
+    post:
+      operationId: notionWriteCompat
+      summary: "CREATE/UPDATE with tolerant body (compatibility)"
+      description: |
+        Compatibility endpoint for connectors using cached/older schemas that reject the `properties` field.
+        Accepts any top-level fields and/or JSON placed inside `content`. The server will normalize into properties
+        and perform schema-aware conversion automatically. Use when `UnrecognizedKwargsError` occurs for `properties`.
+      x-openai-isConsequential: false
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: |
+                Flexible body. Recommended minimal keys:
+                - target: "db" | "update" | "page"
+                - database_id (when target=db) or page_id (when target=update/page)
+                - title (optional)
+                - EITHER:
+                  • properties: { "Status":"Active", ... } (preferred)
+                  • OR put the same JSON inside content as a string
+                  • OR send the property keys at the top-level
+            examples:
+              update_with_json_in_content:
+                summary: Update using JSON in content
+                value:
+                  target: "update"
+                  page_id: "2970cf20-4ff7-813a-a15e-cf4b64c389ec"
+                  content: '{"Status":"Active","Priority":"High","Email":"dev@example.com"}'
+              update_with_top_level_fields:
+                summary: Update using top-level fields
+                value:
+                  target: "update"
+                  page_id: "2970cf20-4ff7-813a-a15e-cf4b64c389ec"
+                  Status: "Active"
+                  Priority: "High"
+                  Email: "dev@example.com"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  action: { type: string }
+                  page_id: { type: string }
+                  url: { type: string }
+                  request_id: { type: ["string", "null"] }
+        "400":
+          description: Invalid payload
   /chatgpt/notion-create-database:
     post:
       operationId: notionCreateDatabase

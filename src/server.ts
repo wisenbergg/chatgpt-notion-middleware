@@ -288,6 +288,81 @@ app.post(["/notionWrite", "/chatgpt/notionWrite"], async (req: Request, res: Res
   }
 });
 
+// Compatibility endpoint: accepts any top-level fields and/or JSON in `content`.
+// Useful when the connector is using a cached schema and rejects `properties`.
+app.post("/chatgpt/notion-write-compat", async (req: Request, res: Response) => {
+  // Start with a shallow copy of the body
+  const input = { ...(req.body ?? {}) } as any;
+
+  // Normalize IDs
+  if (input.database_id) {
+    const inferred = extractNotionId(input.database_id);
+    if (inferred) input.database_id = inferred;
+  }
+  if (input.page_id) {
+    const inferred = extractNotionId(input.page_id);
+    if (inferred) input.page_id = inferred;
+  }
+  if (input.target === "db" && !input.database_id) {
+    const envDb = process.env.NOTION_DB_ID || process.env.NOTION_DB_URL;
+    const inferred = extractNotionId(envDb);
+    if (inferred) input.database_id = inferred;
+  }
+
+  // Tolerant normalization identical to main write route
+  try {
+    const reserved = new Set(["target", "database_id", "page_id", "title", "content", "request_id"]);
+    const needsProps = !input.properties || typeof input.properties !== "object";
+    if (needsProps) {
+      // JSON-in-content → properties
+      if (typeof input.content === "string") {
+        const s = input.content.trim();
+        if (s.startsWith("{") && s.endsWith("}")) {
+          try {
+            const parsed = JSON.parse(s);
+            if (parsed && typeof parsed === "object") {
+              input.properties = parsed;
+              delete input.content;
+            }
+          } catch {}
+        }
+      }
+      // Merge top-level fields into properties
+      if (!input.properties || typeof input.properties !== "object") {
+        const props: Record<string, any> = {};
+        for (const k of Object.keys(input)) {
+          if (!reserved.has(k)) {
+            props[k] = input[k];
+            delete input[k];
+          }
+        }
+        if (Object.keys(props).length) input.properties = props;
+      }
+    }
+  } catch {}
+
+  const parse = WritePayloadSchema.safeParse(input);
+  if (!parse.success) {
+    return res
+      .status(400)
+      .json({ error: "Invalid payload", details: parse.error.flatten() });
+  }
+  try {
+    try {
+      const propKeys = Object.keys((parse.data as any).properties || {});
+      console.log(`[write-compat] properties_keys=${propKeys.length}`, propKeys.slice(0, 24));
+    } catch {}
+    const result = await handleWrite(parse.data);
+    res.json({ ok: true, ...result, request_id: parse.data.request_id ?? null });
+  } catch (err: any) {
+    console.error("Notion write (compat) failed:", err?.message, err?.body ?? "");
+    const status = (err?.status as number) || 500;
+    res
+      .status(status)
+      .json({ ok: false, error: err?.message || "Internal error", request_id: parse.data.request_id ?? null });
+  }
+});
+
 // Main query endpoint (safe read-only)
 app.post("/chatgpt/notion-query", async (req: Request, res: Response) => {
   const input = { ...(req.body ?? {}) } as any;

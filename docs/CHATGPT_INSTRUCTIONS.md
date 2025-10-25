@@ -7,6 +7,7 @@
 ## Quick Reference
 ```
 CREATE PAGE (MOST COMMON): notionWrite + {"target":"db","database_id":"..."}
+IF YOUR ACTIONS UI REJECTS `properties`: notionWriteCompat (same behavior, more tolerant)
 ADD COLUMNS: notionUpdateDatabaseV5 + {"database_id":"...","properties":{...}}
 UPDATE PAGE: notionWrite + {"target":"update","page_id":"..."}
 QUERY DATA: notionQuery + {"mode":"db_query|search|page_get"}
@@ -35,6 +36,11 @@ Middleware converts to: email→{email:"..."}, select→{select:{name:"..."}}, n
 **NEVER send nested objects:** ❌ `{"Email":{"email":"..."}}`  ✅ `{"Email":"user@example.com"}`
 
 Tip: If your connector emits top-level fields (not wrapped in `properties`), the server will merge any keys that match the database schema into `properties` automatically. Prefer `properties` for clarity, but both are accepted.
+
+If you see `UnrecognizedKwargsError: properties` from your tool UI, call `notionWriteCompat` instead. It accepts:
+- `properties` (preferred), or
+- JSON in `content` (as a string), or
+- top-level fields (merged automatically)
 
 **Auto-conversions (schema-aware):** String→rich_text/email/url/phone/select, Number→number, Boolean→checkbox, Date string→date, Array→multi_select
 **Blocks:** paragraph, heading_1/2/3, bulleted_list_item, numbered_list_item, to_do, quote, callout, toggle
