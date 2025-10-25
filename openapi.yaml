@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.1.0
+  version: 5.2.0
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
     
@@ -346,9 +346,9 @@ paths:
   /chatgpt/notion-query:
     post:
       operationId: notionQuery
-      summary: "SEARCH and RETRIEVE data from Notion"
+      summary: "SEARCH, RETRIEVE, and UPDATE Notion data"
       description: |
-        Query Notion workspace. Common modes: "search" (workspace search), "db_query" (get database pages), "page_get" (get page), "database_get" (get schema).
+        Multi-purpose query/update operation. Common modes: search, db_query, page_get, database_get, data_source_update (rename DB). Use data_source_update with data_source_id + title to rename databases. See examples.
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
@@ -358,6 +358,30 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/QueryPayload'
+            examples:
+              search_workspace:
+                summary: Search for databases or pages
+                value:
+                  mode: "search"
+                  query: "API Partners"
+                  object: "database"
+              query_database:
+                summary: Get all pages from a database
+                value:
+                  mode: "db_query"
+                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
+                  page_size: 100
+              update_database_title:
+                summary: "RENAME DATABASE - Change database title"
+                value:
+                  mode: "data_source_update"
+                  data_source_id: "cf47f53f-b71d-434f-93d5-8e05a0b144f5"
+                  title: "New Database Name"
+              get_page:
+                summary: Get page content and properties
+                value:
+                  mode: "page_get"
+                  page_id: "23e0cf20-4ff7-8037-bccf-e8d178f77fbe"
       responses:
         "200":
           description: OK
