@@ -899,9 +899,20 @@ export async function handleQuery(payload: QueryPayload) {
       requestBody.properties = properties;
     }
 
-    // Handle title updates
+    // Handle title updates - convert string to rich text array if needed
     if (payload.title) {
-      requestBody.title = payload.title;
+      if (typeof payload.title === 'string') {
+        // Plain string - convert to Notion rich text array
+        requestBody.title = [
+          {
+            type: "text",
+            text: { content: payload.title }
+          }
+        ];
+      } else if (Array.isArray(payload.title)) {
+        // Already in rich text format
+        requestBody.title = payload.title;
+      }
     }
 
     // Handle icon updates
