@@ -48,9 +48,32 @@ paths:
         - target: "db"
         - database_id: The database ID where you want to create the page
         
+        ⚡ PROPERTY FORMAT - SEND SIMPLE FLAT KEY-VALUE PAIRS:
+        The middleware automatically converts your simple values to proper Notion formats.
+        Just send: {"Email": "user@example.com", "Status": "Active", "Count": 42, "Done": true}
+        The middleware handles conversion to Notion's property schemas automatically.
+        
+        ⚠️ AUTO-CONVERSION ONLY FOR DATABASE PAGES:
+        Schema-aware conversion applies ONLY to target="db" and target="update" (database pages).
+        For target="page" (child pages, not in database), use simple values without schema conversion.
+        
+        Supported auto-conversions (for database pages):
+        - Strings → rich_text, email, url, phone_number, or select (based on schema)
+        - Numbers → number properties
+        - Booleans → checkbox properties
+        - Date strings (YYYY-MM-DD) → date properties
+        - Arrays of strings → multi_select properties
+        
+        ⚠️ PEOPLE FIELDS: Cannot convert email strings to user IDs.
+        If you send {"Contact Person": "email@example.com"}, the field will be SKIPPED.
+        People fields require Notion user IDs - query users first or leave empty.
+        
+        ❌ DO NOT send nested Notion property objects like {"Email": {"email": "..."}}
+        ✅ DO send flat values like {"Email": "user@example.com"}
+        
         EXAMPLES:
         1. To create a page in database "abc-123": {"target": "db", "database_id": "abc-123", "title": "My Page"}
-        2. To update page "xyz-789": {"target": "update", "page_id": "xyz-789", "properties": {"Status": "Done"}}
+        2. To update page "xyz-789": {"target": "update", "page_id": "xyz-789", "properties": {"Status": "Done", "Email": "new@email.com"}}
         3. To create child page under "parent-123": {"target": "page", "page_id": "parent-123", "title": "Child"}
         
         This action DOES support creating pages in databases. Always use target="db" with database_id.
@@ -70,9 +93,12 @@ paths:
                   enum: [db, update, page]
                   description: |
                     REQUIRED. Choose operation type:
-                    - "db" = CREATE NEW PAGE IN DATABASE (most common - use with database_id)
-                    - "update" = UPDATE EXISTING PAGE (use with page_id)
-                    - "page" = CREATE CHILD PAGE UNDER PARENT PAGE (use with page_id as parent)
+                    - "db" = CREATE NEW PAGE IN DATABASE (most common - creates a database record/row)
+                    - "update" = UPDATE EXISTING PAGE (modifies an existing database page or regular page)
+                    - "page" = CREATE CHILD PAGE UNDER PARENT PAGE (creates a regular page, NOT a database record)
+                    
+                    ⚠️ IMPORTANT: Only "db" and "update" support schema-aware property conversion.
+                    Child pages (target="page") don't have schemas.
                 database_id:
                   type: string
                   description: |
@@ -93,8 +119,39 @@ paths:
                   type: object
                   additionalProperties: true
                   description: |
-                    Page property values as key-value pairs.
-                    Examples: {"Status": "Active", "Priority": "High", "Count": 42, "Done": true}
+                    Page property values as SIMPLE FLAT KEY-VALUE PAIRS.
+                    
+                    ⚡ THE MIDDLEWARE AUTO-CONVERTS TO PROPER NOTION FORMATS:
+                    Just send simple values - the server fetches the database schema and converts automatically.
+                    
+                    ✅ CORRECT FORMAT (flat values):
+                    {
+                      "Email": "user@example.com",
+                      "Status": "Active",
+                      "Priority": "High",
+                      "Count": 42,
+                      "Done": true,
+                      "Start Date": "2025-10-24",
+                      "Tags": ["tag1", "tag2"]
+                    }
+                    
+                    ❌ WRONG FORMAT (nested Notion objects):
+                    {
+                      "Email": {"email": "user@example.com"},
+                      "Status": {"select": {"name": "Active"}}
+                    }
+                    
+                    The middleware handles all Notion property types:
+                    - title, rich_text, email, url, phone_number
+                    - date (send ISO string), select, multi_select, status
+                    - number, checkbox
+                    - people: REQUIRES user IDs (not emails) - query for user IDs first or field will be skipped
+                    
+                    ⚠️ NOTE: Schema conversion only works for database pages (target="db" or target="update").
+                    Child pages (target="page") don't have schemas, so use simple string/number values only.
+                    
+                    Examples: 
+                    {"Status": "Active", "Priority": "High", "Email": "customer@example.com", "Count": 42, "Done": true}
                 content:
                   oneOf:
                     - type: string
@@ -108,7 +165,7 @@ paths:
             examples:
               create_in_database:
                 summary: "MOST COMMON: Create new page/record in database"
-                description: "This creates a brand new page (record/row) inside the specified database"
+                description: "This creates a brand new page (record/row) inside the specified database. Properties use FLAT values - middleware auto-converts to Notion formats."
                 value:
                   target: "db"
                   database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
@@ -117,20 +174,25 @@ paths:
                     Status: "Active"
                     Priority: "High"
                     Email: "customer@example.com"
+                    Count: 42
+                    Done: true
+                    Start Date: "2025-10-24"
                   content: "Initial notes about this customer"
               update_page:
                 summary: "Update properties of existing page"
-                description: "Modify property values of a page that already exists"
+                description: "Modify property values of a page that already exists. Use FLAT values - middleware fetches schema and converts automatically."
                 value:
                   target: "update"
                   page_id: "existing-page-id-here"
                   properties:
                     Status: "Completed"
                     Progress: 100
+                    Email: "updated@example.com"
+                    Completion Date: "2025-10-24"
                   content: "Added completion notes"
               create_child_page:
                 summary: "Create child page under another page (not in database)"
-                description: "Creates a page as a child/subpage of another page (not a database record)"
+                description: "Creates a page as a child/subpage of another page (not a database record). Child pages don't have database schemas, so properties use simple values without type conversion."
                 value:
                   target: "page"
                   page_id: "parent-page-id-here"
@@ -162,6 +224,16 @@ paths:
         - title: Name of the database
         - properties: Must include at least one property with type="title"
         - EITHER parent_page_id OR workspace=true
+        
+        ⚠️ NOTE: This endpoint creates DATABASE SCHEMA (structure/columns).
+        Properties here are DEFINITIONS with explicit "type" field - NOT flat values.
+        
+        ✅ CORRECT (property definitions for schema):
+        {
+          "Name": {"type": "title"},
+          "Email": {"type": "email"},
+          "Status": {"type": "select", "options": ["Active", "Inactive"]}
+        }
         
         EXAMPLE:
         {
@@ -209,7 +281,19 @@ paths:
         
         REQUIRED FIELDS:
         - database_id: The database to modify
-        - properties: Object with property definitions
+        - properties: Object with property definitions (each MUST have "type" field)
+        
+        ⚠️ NOTE: This endpoint modifies DATABASE SCHEMA (columns/fields).
+        Properties here are DEFINITIONS with explicit "type" field - NOT flat values.
+        
+        ✅ CORRECT (property definitions for schema):
+        {
+          "Notes": {"type": "rich_text"},
+          "Priority": {"type": "select", "options": ["High", "Medium", "Low"]},
+          "Count": {"type": "number"}
+        }
+        
+        ❌ For adding DATA (records/rows), use notionWrite with flat values instead.
         
         EXAMPLE: To add a "Notes" text field and "Priority" select field:
         {
