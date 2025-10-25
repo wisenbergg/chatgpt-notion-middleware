@@ -72,15 +72,21 @@ function toNotionPropertiesWithSchema(
   schema: Record<string, any> = {}
 ): Record<string, any> {
   const props: Record<string, any> = {};
+  const isEmpty = (v: any) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0);
+  const isZeroLike = (v: any) => v === 0 || v === '0';
   
   for (const [key, value] of Object.entries(input)) {
+    // Skip empty values for safety (prevents Notion validation errors)
+    const propertySchema = schema[key];
+    const propertyType = propertySchema?.type;
+    if (isEmpty(value) && !(propertyType === 'number' && isZeroLike(value))) {
+      continue;
+    }
+
     if (isAlreadyNotionProperty(value)) {
       props[key] = value;
       continue;
     }
-
-    const propertySchema = schema[key];
-    const propertyType = propertySchema?.type;
 
     // Handle based on actual property type from schema
     switch (propertyType) {
@@ -135,7 +141,12 @@ function toNotionPropertiesWithSchema(
         break;
         
       case 'number':
-        props[key] = { number: typeof value === 'number' ? value : parseFloat(value) || 0 };
+        if (typeof value === 'number') {
+          props[key] = { number: value };
+        } else if (typeof value === 'string' && value.trim() !== '') {
+          const n = Number(value);
+          if (!Number.isNaN(n)) props[key] = { number: n };
+        }
         break;
         
       case 'checkbox':
@@ -145,9 +156,9 @@ function toNotionPropertiesWithSchema(
       case 'people':
         // People requires user IDs, but if string is provided (like email), we skip it
         // ChatGPT should send proper user IDs or we ignore
-        if (Array.isArray(value)) {
+        if (Array.isArray(value) && value.length > 0) {
           props[key] = { people: value };
-        } else if (typeof value === 'string' && value.startsWith('@')) {
+        } else if (typeof value === 'string') {
           // Skip @ mentions in people fields - can't convert email to user ID
           console.warn(`⚠️  Skipping people field "${key}" - requires user IDs, got: ${value}`);
         }
@@ -155,7 +166,7 @@ function toNotionPropertiesWithSchema(
         
       default:
         // Fallback to simple inference
-        if (typeof value === "string") {
+        if (typeof value === "string" && value.trim() !== '') {
           props[key] = { rich_text: [{ type: "text", text: { content: value } }] };
         } else if (typeof value === "number") {
           props[key] = { number: value };
@@ -260,14 +271,25 @@ export async function handleWrite(payload: WritePayload) {
 
   if (payload.target === "db") {
     // Step 2 of 2025-09-03 upgrade: Use data_source_id instead of database_id
-    const databaseId = (payload as any).database_id!;
+    const databaseId = (payload as any).database_id || process.env.NOTION_DB_ID || process.env.NOTION_DB_URL;
+    if (!databaseId) {
+      throw new Error("database_id is required (or set NOTION_DB_ID/NOTION_DB_URL env)");
+    }
     const dataSourceId = await getPrimaryDataSourceId(databaseId);
     // Fetch database schema and perform schema-aware conversion for all properties
     const dbSchema = await getDatabaseSchema(databaseId);
-    const properties = toNotionPropertiesWithSchema(
-      { Name: title, ...(payload as any).properties },
-      dbSchema
-    );
+    // Normalize properties: merge top-level keys that match schema into properties, then filter empties
+    const reserved = new Set(["target", "database_id", "page_id", "title", "content", "request_id"]);
+    const rawProps: Record<string, any> = { ...(payload as any).properties };
+    for (const propName of Object.keys(dbSchema)) {
+      if (rawProps[propName] === undefined && (payload as any)[propName] !== undefined && !reserved.has(propName)) {
+        rawProps[propName] = (payload as any)[propName];
+      }
+    }
+    // Build final properties including Name from title if not provided
+    const withName = { ...(rawProps || {}) } as Record<string, any>;
+    if (withName.Name === undefined) withName.Name = title;
+    const properties = toNotionPropertiesWithSchema(withName, dbSchema);
     
     // Use notion.request for 2025-09-03 API with data_source_id
     const res: any = await (getNotionClient() as any).request({
