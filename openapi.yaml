@@ -188,9 +188,7 @@ paths:
       operationId: notionWriteCompat
       summary: "CREATE/UPDATE with tolerant body (compatibility)"
       description: |
-        Compatibility endpoint for connectors using cached/older schemas that reject the `properties` field.
-        Accepts any top-level fields and/or JSON placed inside `content`. The server will normalize into properties
-        and perform schema-aware conversion automatically. Use when `UnrecognizedKwargsError` occurs for `properties`.
+        Compat endpoint for cached schemas rejecting `properties`. Accepts top-level fields or JSON in `content`. Auto-normalizes and converts using schema. Use when UnrecognizedKwargsError occurs.
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
