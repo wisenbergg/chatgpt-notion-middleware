@@ -34,9 +34,15 @@ Middleware converts to: email→{email:"..."}, select→{select:{name:"..."}}, n
 
 **NEVER send nested objects:** ❌ `{"Email":{"email":"..."}}`  ✅ `{"Email":"user@example.com"}`
 
+Tip: If your connector emits top-level fields (not wrapped in `properties`), the server will merge any keys that match the database schema into `properties` automatically. Prefer `properties` for clarity, but both are accepted.
+
 **Auto-conversions (schema-aware):** String→rich_text/email/url/phone/select, Number→number, Boolean→checkbox, Date string→date, Array→multi_select
 **Blocks:** paragraph, heading_1/2/3, bulleted_list_item, numbered_list_item, to_do, quote, callout, toggle
 **Required:** target="db", database_id. Dates: ISO 8601. People: user IDs (emails will be skipped).
+
+Select/status values:
+- You can send a new option name directly (e.g., `"Priority":"Highest"`). Notion generally accepts new select names and adds them automatically. If Notion rejects the value, add the option via `notionUpdateDatabaseV5` first.
+- In this workspace, the "Status" column in API Partners is a SELECT (not a STATUS property). Sending a plain string like `"Status":"Active"` is correct.
 
 ## B. ADD COLUMNS
 Action: `notionUpdateDatabaseV5` (does NOT create pages)
@@ -82,12 +88,14 @@ Or workspace: `{"workspace":true,"title":"DB","properties":{"Name":{"type":"titl
 ## Validation Checklist
 1. Correct action 2. IDs present 3. Property names match (case-sensitive) 4. Date ISO 8601 5. Select values exist 6. Blocks valid 7. Target correct 8. No parent+workspace mix
 
+Optional: include a `request_id` in your body; the server echoes it back (including on errors) to help correlate logs.
+
 ## Anti-Patterns ❌
 - Missing target: `{"database_id":"x","title":"y"}` → Add `"target":"db"`
 - Wrong type: `{"type":"text"}` → Use `"rich_text"`
 - Mixing ops: Can't add property + create page same call
 - Assuming replace: Content appends
-- Undefined options: Add option first
+- Undefined options: Usually okay — Notion often creates select options on the fly when you send a new name. If you get a validation error, then add the option first.
 - Both parent+workspace: Choose ONE
 - Saying "doesn't support pages" → IT DOES
 
