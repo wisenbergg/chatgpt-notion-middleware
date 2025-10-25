@@ -24,6 +24,61 @@ function extractNotionId(input?: string | null) {
   return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
 }
 
+/**
+ * Intelligent ID resolver: accepts database_id OR data_source_id and auto-converts
+ * Notion API 2025-09-03 has database_id (container) and data_source_id (schema)
+ * Most users provide database_id from URLs, so we auto-lookup data_source_id when needed
+ */
+async function resolveDataSourceId(payload: any): Promise<string | undefined> {
+  // Prefer explicit data_source_id first
+  let dataSourceId = payload.data_source_id ? extractNotionId(payload.data_source_id) : undefined;
+  
+  // Fallback: lookup from database_id
+  if (!dataSourceId && payload.database_id) {
+    const dbId = extractNotionId(payload.database_id);
+    if (dbId) {
+      try {
+        console.log(`🔍 Auto-resolving: database_id → data_source_id...`);
+        const db: any = await getNotionClient().databases.retrieve({ database_id: dbId });
+        dataSourceId = db.data_source_id;
+        console.log(`✅ Resolved data_source_id: ${dataSourceId}`);
+      } catch (err: any) {
+        console.warn(`⚠️  Failed to resolve data_source_id from database_id: ${err.message}`);
+      }
+    }
+  }
+  
+  return dataSourceId;
+}
+
+/**
+ * Resolve parent page ID from multiple possible parameter names
+ * Accepts: parent_page_id, page_id (when used as parent), parent.page_id
+ */
+function resolveParentPageId(payload: any): string | undefined {
+  // Try various parameter names that users might provide
+  const candidates = [
+    payload.parent_page_id,
+    payload.parentPageId,
+    payload.parent?.page_id,
+    payload.parent?.pageId,
+    // Only use page_id if there's no database_id (to avoid confusion with target="update")
+    !payload.database_id && !payload.data_source_id ? payload.page_id : undefined,
+  ];
+  
+  for (const candidate of candidates) {
+    const normalized = extractNotionId(candidate);
+    if (normalized) {
+      if (candidate !== payload.parent_page_id && candidate !== payload.parent?.page_id) {
+        console.log(`🔄 Auto-resolved parent from alternative parameter name`);
+      }
+      return normalized;
+    }
+  }
+  
+  return undefined;
+}
+
 function isAlreadyNotionProperty(v: any): boolean {
   return (
     v &&
@@ -645,11 +700,13 @@ export async function handleQuery(payload: QueryPayload) {
       properties["Name"] = { title: {} };
     }
 
-    // Determine parent: prefer explicit parent_page_id, then env fallback, then (as a last resort) try workspace root
-    let parentPageId: string | undefined = (payload as any).parent_page_id;
+    // Determine parent: use intelligent resolver that accepts multiple parameter names
+    let parentPageId: string | undefined = resolveParentPageId(payload as any);
+    
+    // Env fallback if not provided
     const envFallbackParent = process.env.NOTION_PARENT_PAGE_ID || process.env.NOTION_HOLDING_PAGE_ID;
     if (!parentPageId && (payload as any).workspace && envFallbackParent) {
-      parentPageId = envFallbackParent;
+      parentPageId = extractNotionId(envFallbackParent);
     }
 
     // Fallback: reuse the parent page of a known database (NOTION_DB_ID/URL)
@@ -815,8 +872,11 @@ export async function handleQuery(payload: QueryPayload) {
   // Database properties define the schema of a data source within a Notion database
   // These properties correspond to the columns in the Notion UI
   export async function handleUpdateDataSource(payload: any) {
-    if (!payload.data_source_id) {
-      throw new Error("data_source_id is required for data source update");
+    // Use intelligent resolver that accepts database_id OR data_source_id
+    const dataSourceId = await resolveDataSourceId(payload);
+    
+    if (!dataSourceId) {
+      throw new Error("Either data_source_id or database_id is required for data source update");
     }
 
     const requestBody: any = {};
@@ -862,13 +922,13 @@ export async function handleQuery(payload: QueryPayload) {
       };
     }
 
-    console.log("🔧 Updating data source schema with ID:", payload.data_source_id);
+    console.log("🔧 Updating data source schema with ID:", dataSourceId);
     console.log("📋 Property schema changes:", JSON.stringify(requestBody, null, 2));
 
     // PATCH request to update data source properties (schema)
     const res: any = await (getNotionClient() as any).request({
       method: 'PATCH',
-      path: `data_sources/${extractNotionId(payload.data_source_id)}`,
+      path: `data_sources/${extractNotionId(dataSourceId)}`,
       body: requestBody
     });
 

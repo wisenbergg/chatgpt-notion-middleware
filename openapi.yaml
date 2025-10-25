@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.2.0
+  version: 5.3.0
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
     
@@ -348,7 +348,7 @@ paths:
       operationId: notionQuery
       summary: "SEARCH, RETRIEVE, and UPDATE Notion data"
       description: |
-        Multi-purpose query/update operation. Common modes: search, db_query, page_get, database_get, data_source_update (rename DB). Use data_source_update with data_source_id + title to rename databases. See examples.
+        Multi-purpose query/update operation. Common modes: search, db_query, page_get, database_get, data_source_update (rename DB). To rename: use database_id + title (auto-looks up data_source_id). See examples.
       x-openai-isConsequential: false
       security:
         - bearerAuth: []
@@ -375,7 +375,7 @@ paths:
                 summary: "RENAME DATABASE - Change database title"
                 value:
                   mode: "data_source_update"
-                  data_source_id: "cf47f53f-b71d-434f-93d5-8e05a0b144f5"
+                  database_id: "cf47f53f-b71d-434f-93d5-8e05a0b144f5"
                   title: "New Database Name"
               get_page:
                 summary: Get page content and properties
