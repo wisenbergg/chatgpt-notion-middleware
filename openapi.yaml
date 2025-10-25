@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.6
+  version: 5.3.7
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
     
@@ -642,7 +642,6 @@ components:
       required: [title]
     UpdateDatabasePayload:
       type: object
-      additionalProperties: false
       properties:
         database_id:
           type: string
