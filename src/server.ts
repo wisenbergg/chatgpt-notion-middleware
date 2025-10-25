@@ -167,6 +167,41 @@ app.post("/chatgpt/notion-write", async (req: Request, res: Response) => {
     if (inferred) input.database_id = inferred;
   }
 
+  // Tolerant normalization: if connector can't send `properties`, accept top-level fields
+  // and/or JSON inside `content` as the properties object. Applies to db, update, and page.
+  try {
+    const reserved = new Set(["target", "database_id", "page_id", "title", "content", "request_id"]);
+    const needsProps = !input.properties || typeof input.properties !== "object";
+    if (needsProps) {
+      // 1) Try extracting from JSON-encoded content
+      if (typeof input.content === "string") {
+        const s = input.content.trim();
+        if (s.startsWith("{") && s.endsWith("}")) {
+          try {
+            const parsed = JSON.parse(s);
+            if (parsed && typeof parsed === "object") {
+              input.properties = parsed;
+              // Remove content to avoid appending JSON blob to the page body
+              delete input.content;
+            }
+          } catch {}
+        }
+      }
+
+      // 2) Merge top-level schema-like fields into properties for update/page/db
+      if (!input.properties || typeof input.properties !== "object") {
+        const props: Record<string, any> = {};
+        for (const k of Object.keys(input)) {
+          if (!reserved.has(k)) {
+            props[k] = input[k];
+            delete input[k];
+          }
+        }
+        if (Object.keys(props).length) input.properties = props;
+      }
+    }
+  } catch {}
+
   const parse = WritePayloadSchema.safeParse(input);
   if (!parse.success) {
     return res
@@ -206,6 +241,35 @@ app.post(["/notionWrite", "/chatgpt/notionWrite"], async (req: Request, res: Res
     const inferred = extractNotionId(envDb);
     if (inferred) input.database_id = inferred;
   }
+  // Tolerant normalization (aliases): allow properties via JSON in content or top-level fields
+  try {
+    const reserved = new Set(["target", "database_id", "page_id", "title", "content", "request_id"]);
+    const needsProps = !input.properties || typeof input.properties !== "object";
+    if (needsProps) {
+      if (typeof input.content === "string") {
+        const s = input.content.trim();
+        if (s.startsWith("{") && s.endsWith("}")) {
+          try {
+            const parsed = JSON.parse(s);
+            if (parsed && typeof parsed === "object") {
+              input.properties = parsed;
+              delete input.content;
+            }
+          } catch {}
+        }
+      }
+      if (!input.properties || typeof input.properties !== "object") {
+        const props: Record<string, any> = {};
+        for (const k of Object.keys(input)) {
+          if (!reserved.has(k)) {
+            props[k] = input[k];
+            delete input[k];
+          }
+        }
+        if (Object.keys(props).length) input.properties = props;
+      }
+    }
+  } catch {}
   const parse = WritePayloadSchema.safeParse(input);
   if (!parse.success) {
     return res
