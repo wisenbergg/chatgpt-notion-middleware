@@ -45,6 +45,7 @@ info:
     Compatible with the latest Notion API architecture separating database metadata from data source schemas.
 servers:
   - url: https://api.wheniwas.me
+  - url: http://localhost:8787
 paths:
   /chatgpt/notion-write:
     post:

@@ -130,6 +130,8 @@ app.get("/health", (_req: Request, res: Response) => res.json({ ok: true }));
 
 // Serve OpenAPI for Actions import convenience
 app.get(["/openapi.yaml", "/.well-known/openapi.yaml"], (_req: Request, res: Response) => {
+  // Prevent CDN/client caching of the OpenAPI document so Actions always sees the latest version
+  res.set("Cache-Control", "no-store, max-age=0");
   res.sendFile(path.join(root, "openapi.yaml"));
 });
 
