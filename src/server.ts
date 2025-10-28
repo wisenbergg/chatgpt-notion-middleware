@@ -23,6 +23,7 @@ import cors from "cors";
 import morgan from "morgan";
 import { WritePayload as WritePayloadSchema, QueryPayload as QueryPayloadSchema, CreateDatabasePayload as CreateDatabasePayloadSchema, UpdateDatabasePayload as UpdateDatabasePayloadSchema } from "./schema.js";
 import { handleWrite, handleQuery, handleCreateDatabase, handleUpdateDatabase } from "./notion.js";
+import { getPresetProperties, listPresets } from "./presets.js";
 
 // Database aliases - map friendly names to database IDs
 // Can be configured via environment variable NOTION_DB_ALIASES (JSON format)
@@ -596,6 +597,150 @@ app.post("/chatgpt/notion-update-database", async (req: Request, res: Response) 
     res.json({ ok: true, ...result });
   } catch (err: any) {
     console.error("Update database failed", err?.message, err?.body ?? "");
+    const status = (err?.status as number) || 500;
+    res.status(status).json({ ok: false, error: err?.message || "Internal error" });
+  }
+});
+
+// Compatibility endpoint for updating database schema when Actions cache rejects unknown keys
+// Accepts:
+// - database_id OR database_url
+// - properties (preferred) OR add_properties
+// - rename OR rename_properties
+// - content as JSON string OR object with { properties }
+// - top-level fields merged into properties (last resort)
+app.post("/chatgpt/notion-update-database-compat", async (req: Request, res: Response) => {
+  const input = { ...(req.body ?? {}) } as any;
+  console.log("[UPDATE-DB-COMPAT] Raw body keys:", Object.keys(input || {}));
+
+  // Resolve database alias first
+  if (input.database_id) {
+    const resolved = resolveDatabaseAlias(input.database_id);
+    if (resolved) input.database_id = resolved;
+  } else if (input.database_url) {
+    const resolved = resolveDatabaseAlias(input.database_url);
+    if (resolved) input.database_id = resolved;
+  }
+
+  // Normalize database_id from URL or raw 32-char
+  if (input.database_id) {
+    const inferred = extractNotionId(input.database_id);
+    if (inferred) input.database_id = inferred;
+  } else if (input.database_url) {
+    const inferred = extractNotionId(input.database_url);
+    if (inferred) input.database_id = inferred;
+  }
+
+  // Flexible normalization: map various shapes to { properties, rename }
+  try {
+    // 0) Accept legacy alias add_properties
+    if (!input.properties && input.add_properties && typeof input.add_properties === "object") {
+      input.properties = input.add_properties;
+      delete input.add_properties;
+    }
+
+    // 1) If content is a JSON string, parse into properties
+    if (!input.properties && typeof input.content === "string") {
+      const s = input.content.trim();
+      if (s.startsWith("{") && s.endsWith("}")) {
+        try {
+          const parsed = JSON.parse(s);
+          if (parsed && typeof parsed === "object") {
+            // If caller wrapped it { properties: {...} }, unwrap; else treat as properties map
+            input.properties = parsed.properties && typeof parsed.properties === "object" ? parsed.properties : parsed;
+          }
+          delete input.content; // avoid passing unknown field to strict schema
+        } catch {}
+      }
+    }
+
+    // 2) If content is an object with properties, unwrap
+    if (!input.properties && input.content && typeof input.content === "object" && input.content.properties) {
+      input.properties = input.content.properties;
+      delete input.content;
+    }
+
+    // 3) Merge any non-reserved top-level fields as properties (useful when Actions rejects `properties` key)
+    if (!input.properties || typeof input.properties !== "object") {
+      const reserved = new Set(["database_id", "database_url", "properties", "rename", "rename_properties", "content"]);
+      const props: Record<string, any> = {};
+      for (const k of Object.keys(input)) {
+        if (!reserved.has(k)) {
+          props[k] = input[k];
+          delete input[k];
+        }
+      }
+      if (Object.keys(props).length) input.properties = props;
+    }
+
+    // 4) Normalize rename_properties alias
+    if (!input.rename && input.rename_properties && typeof input.rename_properties === "object") {
+      const map: Record<string, string> = {};
+      for (const [k, v] of Object.entries(input.rename_properties)) {
+        if (typeof v === "string" && v.trim()) map[k] = v;
+        else if (v && typeof (v as any).name === "string") map[k] = (v as any).name;
+      }
+      input.rename = map;
+      delete input.rename_properties;
+    }
+  } catch {}
+
+  // Validate against strict schema after normalization
+  const parse = UpdateDatabasePayloadSchema.safeParse(input);
+  if (!parse.success) {
+    console.error("[UPDATE-DB-COMPAT] Validation failed:", JSON.stringify(parse.error.flatten(), null, 2));
+    return res.status(400).json({ error: "Invalid payload", details: parse.error.flatten() });
+  }
+
+  console.log("[UPDATE-DB-COMPAT] Normalized keys:", Object.keys(parse.data as any));
+  try {
+    const result = await handleUpdateDatabase(parse.data as any);
+    res.json({ ok: true, ...result });
+  } catch (err: any) {
+    console.error("Update database (compat) failed", err?.message, err?.body ?? "");
+    const status = (err?.status as number) || 500;
+    res.status(status).json({ ok: false, error: err?.message || "Internal error" });
+  }
+});
+
+// Apply a predefined schema preset to a database (adds columns)
+app.post("/chatgpt/notion-apply-preset", async (req: Request, res: Response) => {
+  const input = { ...(req.body ?? {}) } as any;
+  const preset = String(input.preset || "").trim();
+  if (!preset) {
+    return res.status(400).json({ ok: false, error: `Missing 'preset'. Available: ${listPresets().join(", ")}` });
+  }
+
+  // Resolve and normalize database id
+  if (input.database_id) {
+    const resolved = resolveDatabaseAlias(input.database_id);
+    if (resolved) input.database_id = resolved;
+  } else if (input.database_url) {
+    const resolved = resolveDatabaseAlias(input.database_url);
+    if (resolved) input.database_id = resolved;
+  }
+  const dbId = extractNotionId(input.database_id || input.database_url);
+  if (!dbId) {
+    return res.status(400).json({ ok: false, error: "database_id (or database_url) is required" });
+  }
+
+  const properties = getPresetProperties(preset);
+  if (!properties) {
+    return res.status(400).json({ ok: false, error: `Unknown preset '${preset}'. Available: ${listPresets().join(", ")}` });
+  }
+
+  // Strict-validate via UpdateDatabasePayloadSchema
+  const normalized = { database_id: dbId, properties };
+  const parse = UpdateDatabasePayloadSchema.safeParse(normalized);
+  if (!parse.success) {
+    return res.status(400).json({ ok: false, error: "Invalid preset payload", details: parse.error.flatten() });
+  }
+
+  try {
+    const result = await handleUpdateDatabase(parse.data as any);
+    res.json({ ok: true, preset, ...result });
+  } catch (err: any) {
+    console.error("Apply preset failed", err?.message, err?.body ?? "");
     const status = (err?.status as number) || 500;
     res.status(status).json({ ok: false, error: err?.message || "Internal error" });
   }

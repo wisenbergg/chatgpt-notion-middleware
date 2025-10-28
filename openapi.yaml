@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.12
+  version: 5.3.13
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
     
@@ -30,6 +30,14 @@ info:
     🔹 GET/SEARCH DATA:
        → Use: notionQuery
        → Required: {"mode": "db_query|search|page_get|..."}
+
+    🔹 UPDATE DB (compat - when cached schema rejects `properties`):
+       → Use: notionUpdateDatabaseCompat
+       → Flexible body: accepts top-level fields, JSON in `content`, or aliases like `add_properties`
+
+    🔹 APPLY PRESET (add known set of columns):
+       → Use: notionApplyDatabasePreset
+       → Required: {"database_id": "...", "preset": "couchloop_meme_v1"}
     
     ═══════════════════════════════════════════════════════════════════
     
@@ -363,6 +371,96 @@ paths:
           description: Invalid payload
         "401":
           description: Unauthorized
+  /chatgpt/notion-update-database-compat:
+    post:
+      operationId: notionUpdateDatabaseCompat
+      summary: "UPDATE DATABASE SCHEMA (compat) - Tolerant body for cached Actions schemas"
+      description: |
+        Tolerant variant for adding property columns when ChatGPT's cached Action schema rejects the `properties` key.
+        Accepts:
+        - database_id OR database_url
+        - properties (preferred) OR add_properties
+        - rename OR rename_properties
+        - content as JSON string or object with { properties }
+        - arbitrary top-level fields merged into properties
+      x-openai-isConsequential: true
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Flexible payload for schema updates when `properties` is rejected by Actions cache.
+              properties:
+                database_id:
+                  type: string
+                  description: Database ID or URL
+                database_url:
+                  type: string
+                  description: Alternative to database_id; a full Notion URL
+                properties:
+                  type: object
+                  additionalProperties: true
+                  description: Map of property name to definition ({ type, options?, ... })
+                add_properties:
+                  type: object
+                  additionalProperties: true
+                  description: Alias for `properties`
+                rename:
+                  type: object
+                  additionalProperties:
+                    oneOf:
+                      - type: string
+                      - type: object
+                        properties:
+                          name:
+                            type: string
+                  description: Map of current property name to new name
+                rename_properties:
+                  type: object
+                  additionalProperties: true
+                  description: Alias for `rename`
+                content:
+                  oneOf:
+                    - type: string
+                      description: "JSON string containing either a { properties: {...} } wrapper or a direct properties map"
+                    - type: object
+                      description: "Object wrapper; if it has a `properties` field it's unwrapped"
+                      additionalProperties: true
+              additionalProperties: true
+            examples:
+              json_in_content:
+                summary: Provide properties as JSON string in `content`
+                value:
+                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
+                  content: '{"properties":{"Status":{"type":"select","options":["Todo","Done"]},"Notes":{"type":"rich_text"}}}'
+              top_level_fields:
+                summary: Provide properties as top-level fields (merged automatically)
+                value:
+                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
+                  Status:
+                    type: select
+                    options: ["Todo", "In Progress", "Done"]
+                  Notes:
+                    type: rich_text
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  action: { type: string }
+                  database_id: { type: string }
+                  url: { type: string }
+        "400":
+          description: Invalid payload
+        "401":
+          description: Unauthorized
   /chatgpt/notion-query:
     post:
       operationId: notionQuery
@@ -426,6 +524,57 @@ paths:
                           database: { type: object, additionalProperties: true }
                           data_source: { type: object, additionalProperties: true }
                           result: { type: object, additionalProperties: true }
+        "400":
+          description: Invalid payload
+        "401":
+          description: Unauthorized
+  /chatgpt/notion-apply-preset:
+    post:
+      operationId: notionApplyDatabasePreset
+      summary: "APPLY PRESET - Add a predefined set of columns to a database"
+      description: |
+        Applies a named preset (e.g., "couchloop_meme_v1") that defines a set of properties/columns.
+        Useful to avoid crafting large property payloads manually.
+      x-openai-isConsequential: true
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                database_id:
+                  type: string
+                  description: Database ID or full Notion URL
+                database_url:
+                  type: string
+                  description: Alternative to database_id; a full Notion URL
+                preset:
+                  type: string
+                  enum: [couchloop_meme_v1]
+                  description: Preset name to apply
+              required: [preset]
+            examples:
+              apply_meme_preset:
+                summary: Apply CouchLoop meme preset
+                value:
+                  database_id: "https://notion.so/your-db-url"
+                  preset: "couchloop_meme_v1"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  preset: { type: string }
+                  action: { type: string }
+                  database_id: { type: string }
+                  url: { type: string }
         "400":
           description: Invalid payload
         "401":
