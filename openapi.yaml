@@ -376,13 +376,7 @@ paths:
       operationId: notionUpdateDatabaseCompat
       summary: "UPDATE DATABASE SCHEMA (compat) - Tolerant body for cached Actions schemas"
       description: |
-        Tolerant variant for adding property columns when ChatGPT's cached Action schema rejects the `properties` key.
-        Accepts:
-        - database_id OR database_url
-        - properties (preferred) OR add_properties
-        - rename OR rename_properties
-        - content as JSON string or object with { properties }
-        - arbitrary top-level fields merged into properties
+        Tolerant schema update for adding columns when Actions cache rejects 'properties'. Accepts database_id (or URL) and flexible payloads: properties/add_properties, rename/rename_properties, JSON in content, and merges top‑level fields into properties.
       x-openai-isConsequential: true
       security:
         - bearerAuth: []
