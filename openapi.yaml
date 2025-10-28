@@ -1,7 +1,7 @@
-openapi: 3.1.1
+openapi: 3.1.2
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.14
+  version: 5.3.16
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
     
@@ -282,6 +282,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateDatabasePayload'
+            x-openai-force-object: true
       responses:
         "200":
           description: OK
@@ -308,14 +309,19 @@ paths:
       x-openai-isConsequential: true
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateDatabasePayload'
-            examples:
-              add_multiple_properties:
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          allOf:
+            - $ref: '#/components/schemas/UpdateDatabasePayload'
+          required:            # ← same indent as allOf, not under it
+            - database_id
+            - properties
+          x-openai-force-object: true
+          examples:
+            add_multiple_properties:
                 summary: Add multiple columns at once
                 value:
                   database_id: "123e4567-e89b-12d3-a456-426614174000"
@@ -333,28 +339,6 @@ paths:
                       type: "rich_text"
                     Last Updated:
                       type: "last_edited_time"
-              add_text_property:
-                summary: Add a text property
-                value:
-                  database_id: "123e4567-e89b-12d3-a456-426614174000"
-                  properties:
-                    Notes:
-                      type: "rich_text"
-              add_select_property:
-                summary: Add a select property
-                value:
-                  database_id: "123e4567-e89b-12d3-a456-426614174000"
-                  properties:
-                    Category:
-                      type: "select"
-                      options: ["High", "Medium", "Low"]
-              add_status_property:
-                summary: Add a status property
-                value:
-                  database_id: "123e4567-e89b-12d3-a456-426614174000"
-                  properties:
-                    Status:
-                      type: "status"
       responses:
         "200":
           description: OK
@@ -760,49 +744,44 @@ components:
         properties:
           type: object
           description: |
-            Map of property name to a definition. Use either a simplified definition or a raw Notion schema via { "raw": { ... } }.
-            Supported simplified types: title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id.
+            REQUIRED. Defines the database schema: property names mapped to column definitions.
+            Each definition must include at least a "type" field. Supports simplified Notion property formats.
           additionalProperties:
-            oneOf:
-              - type: object
-                properties:
-                  type:
-                    type: string
-                    enum: [title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id]
-                  options:
-                    type: array
-                    items: { type: string }
-                  number_format:
-                    type: string
-                  expression:
-                    type: string
-                  database_id:
-                    type: string
-                  relation_type:
-                    type: string
-                    enum: [single_property, dual_property]
-                  synced_property_name:
-                    type: string
-                  synced_property_id:
-                    type: string
-                  relation_property_name:
-                    type: string
-                  relation_property_id:
-                    type: string
-                  rollup_property_name:
-                    type: string
-                  rollup_property_id:
-                    type: string
-                  function:
-                    type: string
-                  prefix:
-                    type: string
-              - type: object
-                properties:
-                  raw:
-                    type: object
-                    additionalProperties: true
-      required: [title]
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id]
+              options:
+                type: array
+                items: { type: string }
+              number_format:
+                type: string
+              expression:
+                type: string
+              database_id:
+                type: string
+              relation_type:
+                type: string
+                enum: [single_property, dual_property]
+              synced_property_name:
+                type: string
+              synced_property_id:
+                type: string
+              relation_property_name:
+                type: string
+              relation_property_id:
+                type: string
+              rollup_property_name:
+                type: string
+              rollup_property_id:
+                type: string
+              function:
+                type: string
+              prefix:
+                type: string
+            required: [type]
+      required: [title, properties]
     UpdateDatabasePayload:
       type: object
       properties:
