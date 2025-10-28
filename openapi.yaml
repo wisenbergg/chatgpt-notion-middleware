@@ -1,32 +1,32 @@
-openapi: 3.1.2
+openapi: 3.1.1
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.16
+  version: 5.3.17
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
-    
+
     ═══════════════════════════════════════════════════════════════════
     QUICK REFERENCE - Choose the right action:
     ═══════════════════════════════════════════════════════════════════
-    
+
     🔹 CREATE PAGE IN DATABASE (add record/row):
        → Use: notionWrite
        → Required: {"target": "db", "database_id": "..."}
        → This is the MOST COMMON operation
-    
+
     🔹 ADD/MODIFY COLUMNS in database (change schema structure):
        → Use: notionUpdateDatabaseV5
        → Required: {"database_id": "...", "properties": {...}}
        → This is for DATABASE STRUCTURE, not page data
-    
+
     🔹 CREATE NEW DATABASE:
        → Use: notionCreateDatabase
        → Required: {"title": "...", "properties": {...}}
-    
+
     🔹 UPDATE EXISTING PAGE:
        → Use: notionWrite
        → Required: {"target": "update", "page_id": "..."}
-    
+
     🔹 GET/SEARCH DATA:
        → Use: notionQuery
        → Required: {"mode": "db_query|search|page_get|..."}
@@ -38,9 +38,9 @@ info:
     🔹 APPLY PRESET (add known set of columns):
        → Use: notionApplyDatabasePreset
        → Required: {"database_id": "...", "preset": "couchloop_meme_v1"}
-    
+
     ═══════════════════════════════════════════════════════════════════
-    
+
     Supports all Notion API 2025-09-03 endpoints including databases, data sources, pages, and blocks.
     Compatible with the latest Notion API architecture separating database metadata from data source schemas.
 servers:
@@ -71,7 +71,7 @@ paths:
                     - "db" = CREATE NEW PAGE IN DATABASE (most common - creates a database record/row)
                     - "update" = UPDATE EXISTING PAGE (modifies an existing database page or regular page)
                     - "page" = CREATE CHILD PAGE UNDER PARENT PAGE (creates a regular page, NOT a database record)
-                    
+
                     ⚠️ IMPORTANT: Only "db" and "update" support schema-aware property conversion.
                     Child pages (target="page") don't have schemas.
                 database_id:
@@ -95,14 +95,14 @@ paths:
                   additionalProperties: true
                   description: |
                     Page property values as SIMPLE FLAT KEY-VALUE PAIRS.
-                    
+
                     ⚡ THE MIDDLEWARE AUTO-CONVERTS TO PROPER NOTION FORMATS:
                     Just send simple values - the server fetches the database schema and converts automatically.
-                    
+
                     Tip: If you also include flat fields at the top-level of the body (outside `properties`),
                     the server will merge any keys that match the database schema into `properties` automatically.
                     Prefer `properties` for clarity, but both are accepted.
-                    
+
                     ✅ CORRECT FORMAT (flat values):
                     {
                       "Email": "user@example.com",
@@ -113,22 +113,22 @@ paths:
                       "Start Date": "2025-10-24",
                       "Tags": ["tag1", "tag2"]
                     }
-                    
+
                     ❌ WRONG FORMAT (nested Notion objects):
                     {
                       "Email": {"email": "user@example.com"},
                       "Status": {"select": {"name": "Active"}}
                     }
-                    
+
                     The middleware handles all Notion property types:
                     - title, rich_text, email, url, phone_number
                     - date (send ISO string), select, multi_select, status
                     - number, checkbox
                     - people: REQUIRES user IDs (not emails) - query for user IDs first or field will be skipped
-                    
+
                     ⚠️ NOTE: Schema conversion only works for database pages (target="db" or target="update").
                     Child pages (target="page") don't have schemas, so use simple string/number values only.
-                    
+
                     Examples: 
                     {"Status": "Active", "Priority": "High", "Email": "customer@example.com", "Count": 42, "Done": true}
                 content:
@@ -136,7 +136,7 @@ paths:
                     - type: string
                     - type: array
                       items:
-                        $ref: '#/components/schemas/BlockInput'
+                        $ref: "#/components/schemas/BlockInput"
                   description: |
                     Page body content. Can be:
                     - Simple string: "This is my page content"
@@ -234,7 +234,7 @@ paths:
                     - type: string
                     - type: array
                       items:
-                        $ref: '#/components/schemas/BlockInput'
+                        $ref: "#/components/schemas/BlockInput"
                   description: "Either blocks or a JSON string containing properties. JSON is parsed into properties."
               additionalProperties: true
             examples:
@@ -281,7 +281,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateDatabasePayload'
+              $ref: "#/components/schemas/CreateDatabasePayload"
             x-openai-force-object: true
       responses:
         "200":
@@ -309,19 +309,20 @@ paths:
       x-openai-isConsequential: true
       security:
         - bearerAuth: []
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          allOf:
-            - $ref: '#/components/schemas/UpdateDatabasePayload'
-          required:            # ← same indent as allOf, not under it
-            - database_id
-            - properties
-          x-openai-force-object: true
-          examples:
-            add_multiple_properties:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/UpdateDatabasePayload"
+              type: object
+              required:
+                - database_id
+                - properties
+              x-openai-force-object: true
+            examples:
+              add_multiple_properties:
                 summary: Add multiple columns at once
                 value:
                   database_id: "123e4567-e89b-12d3-a456-426614174000"
@@ -453,7 +454,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/QueryPayload'
+              $ref: "#/components/schemas/QueryPayload"
             examples:
               search_workspace:
                 summary: Search for databases or pages
@@ -491,16 +492,46 @@ paths:
                     oneOf:
                       - type: object
                         properties:
-                          mode: { type: string, enum: [search, db_query, page_get, database_get, data_source_get, data_source_query, data_source_update, block_get, block_children_get, block_children_append, block_update, block_delete, page_property_get, data_source_templates_list] }
-                          results: { type: array, items: { type: object, additionalProperties: true } }
+                          mode:
+                            {
+                              type: string,
+                              enum:
+                                [
+                                  search,
+                                  db_query,
+                                  page_get,
+                                  database_get,
+                                  data_source_get,
+                                  data_source_query,
+                                  data_source_update,
+                                  block_get,
+                                  block_children_get,
+                                  block_children_append,
+                                  block_update,
+                                  block_delete,
+                                  page_property_get,
+                                  data_source_templates_list,
+                                ],
+                            }
+                          results:
+                            {
+                              type: array,
+                              items:
+                                { type: object, additionalProperties: true },
+                            }
                           has_more: { type: boolean }
                           next_cursor: { type: ["string", "null"] }
                       - type: object
                         properties:
-                          mode: { type: string, enum: [page_get, database_get, data_source_get] }
+                          mode:
+                            {
+                              type: string,
+                              enum: [page_get, database_get, data_source_get],
+                            }
                           page: { type: object, additionalProperties: true }
                           database: { type: object, additionalProperties: true }
-                          data_source: { type: object, additionalProperties: true }
+                          data_source:
+                            { type: object, additionalProperties: true }
                           result: { type: object, additionalProperties: true }
         "400":
           description: Invalid payload
@@ -599,7 +630,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PingRequest'
+              $ref: "#/components/schemas/PingRequest"
       responses:
         "200":
           description: OK
@@ -635,7 +666,19 @@ components:
       properties:
         type:
           type: string
-          enum: [paragraph, heading_1, heading_2, heading_3, bulleted_list_item, numbered_list_item, to_do, quote, callout, toggle]
+          enum:
+            [
+              paragraph,
+              heading_1,
+              heading_2,
+              heading_3,
+              bulleted_list_item,
+              numbered_list_item,
+              to_do,
+              quote,
+              callout,
+              toggle,
+            ]
         text:
           type: string
       required: [type, text]
@@ -646,7 +689,23 @@ components:
       properties:
         mode:
           type: string
-          enum: [search, db_query, page_get, database_get, data_source_get, data_source_query, data_source_update, block_get, block_children_get, block_children_append, block_update, block_delete, page_property_get, data_source_templates_list]
+          enum:
+            [
+              search,
+              db_query,
+              page_get,
+              database_get,
+              data_source_get,
+              data_source_query,
+              data_source_update,
+              block_get,
+              block_children_get,
+              block_children_append,
+              block_update,
+              block_delete,
+              page_property_get,
+              data_source_templates_list,
+            ]
         # search
         query:
           type: string
@@ -751,7 +810,30 @@ components:
             properties:
               type:
                 type: string
-                enum: [title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id]
+                enum:
+                  [
+                    title,
+                    rich_text,
+                    number,
+                    select,
+                    multi_select,
+                    status,
+                    date,
+                    checkbox,
+                    url,
+                    email,
+                    phone_number,
+                    people,
+                    files,
+                    formula,
+                    relation,
+                    rollup,
+                    created_time,
+                    created_by,
+                    last_edited_time,
+                    last_edited_by,
+                    unique_id,
+                  ]
               options:
                 type: array
                 items: { type: string }
@@ -797,7 +879,30 @@ components:
                 properties:
                   type:
                     type: string
-                    enum: [title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id]
+                    enum:
+                      [
+                        title,
+                        rich_text,
+                        number,
+                        select,
+                        multi_select,
+                        status,
+                        date,
+                        checkbox,
+                        url,
+                        email,
+                        phone_number,
+                        people,
+                        files,
+                        formula,
+                        relation,
+                        rollup,
+                        created_time,
+                        created_by,
+                        last_edited_time,
+                        last_edited_by,
+                        unique_id,
+                      ]
                   options:
                     type: array
                     items: { type: string }
