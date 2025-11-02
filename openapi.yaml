@@ -1,7 +1,7 @@
 openapi: 3.1.1
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.20
+  version: 5.3.21
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
 
@@ -357,6 +357,63 @@ paths:
           description: Invalid payload
         "401":
           description: Unauthorized
+    patch:
+      operationId: notionUpdateDatabaseV5Patch
+      summary: "UPDATE DATABASE SCHEMA (PATCH) - Add/modify property columns"
+      description: |
+        Same as POST variant. Modifies database structure by adding property columns. Use this for schema changes, not data updates.
+        Requires database_id and properties. Execute immediately - do not ask for confirmation.
+      x-openai-isConsequential: true
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/UpdateDatabasePayload"
+              type: object
+              properties: {}
+              required:
+                - database_id
+                - properties
+            x-openai-force-object: true
+            examples:
+              add_multiple_properties_patch:
+                summary: Add multiple columns via PATCH
+                value:
+                  database_id: "123e4567-e89b-12d3-a456-426614174000"
+                  properties:
+                    Task:
+                      type: "title"
+                    Status:
+                      type: "select"
+                      options: ["Not Started", "In Progress", "Done"]
+                    Owner:
+                      type: "people"
+                    Due Date:
+                      type: "date"
+                    Notes:
+                      type: "rich_text"
+                    Last Updated:
+                      type: "last_edited_time"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  action: { type: string }
+                  database_id: { type: string }
+                  url: { type: string }
+        "400":
+          description: Invalid payload
+        "401":
+          description: Unauthorized
   /chatgpt/notion-update-database-compat:
     post:
       operationId: notionUpdateDatabaseCompat
@@ -418,6 +475,89 @@ paths:
                   content: '{"properties":{"Status":{"type":"select","options":["Todo","Done"]},"Notes":{"type":"rich_text"}}}'
               top_level_fields:
                 summary: Provide properties as top-level fields (merged automatically)
+                value:
+                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
+                  Status:
+                    type: select
+                    options: ["Todo", "In Progress", "Done"]
+                  Notes:
+                    type: rich_text
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  action: { type: string }
+                  database_id: { type: string }
+                  url: { type: string }
+        "400":
+          description: Invalid payload
+        "401":
+          description: Unauthorized
+    patch:
+      operationId: notionUpdateDatabaseCompatPatch
+      summary: "UPDATE DATABASE SCHEMA (compat, PATCH) - Tolerant body for cached Actions schemas"
+      description: |
+        PATCH variant of the tolerant schema update for adding columns when Actions cache rejects 'properties'. Accepts database_id (or URL) and flexible payloads: properties/add_properties, rename/rename_properties, JSON in content, and merges top‑level fields into properties.
+      x-openai-isConsequential: true
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Flexible payload for schema updates when `properties` is rejected by Actions cache.
+              properties:
+                database_id:
+                  type: string
+                  description: Database ID or URL
+                database_url:
+                  type: string
+                  description: Alternative to database_id; a full Notion URL
+                properties:
+                  type: object
+                  additionalProperties: true
+                  description: Map of property name to definition ({ type, options?, ... })
+                add_properties:
+                  type: object
+                  additionalProperties: true
+                  description: Alias for `properties`
+                rename:
+                  type: object
+                  additionalProperties:
+                    oneOf:
+                      - type: string
+                      - type: object
+                        properties:
+                          name:
+                            type: string
+                  description: Map of current property name to new name
+                rename_properties:
+                  type: object
+                  additionalProperties: true
+                  description: Alias for `rename`
+                content:
+                  oneOf:
+                    - type: string
+                      description: "JSON string containing either a { properties: {...} } wrapper or a direct properties map"
+                    - type: object
+                      description: "Object wrapper; if it has a `properties` field it's unwrapped"
+                      additionalProperties: true
+              additionalProperties: true
+            examples:
+              json_in_content_patch:
+                summary: Provide properties JSON via PATCH
+                value:
+                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
+                  content: '{"properties":{"Status":{"type":"select","options":["Todo","Done"]},"Notes":{"type":"rich_text"}}}'
+              top_level_fields_patch:
+                summary: Provide properties as top-level fields (merged automatically) via PATCH
                 value:
                   database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
                   Status:
