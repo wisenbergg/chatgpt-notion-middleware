@@ -1,7 +1,7 @@
 openapi: 3.1.1
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.19
+  version: 5.3.20
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
 
@@ -321,7 +321,7 @@ paths:
               required:
                 - database_id
                 - properties
-              x-openai-force-object: true
+            x-openai-force-object: true
             examples:
               add_multiple_properties:
                 summary: Add multiple columns at once
