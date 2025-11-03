@@ -1,0 +1,153 @@
+// Preset definitions for database schema properties
+// These are used to quickly apply a known set of columns to a database
+
+export type PresetName = "couchloop_meme_v1";
+
+export function listPresets(): PresetName[] {
+  return ["couchloop_meme_v1"];
+}
+
+export function getPresetProperties(name: PresetName): Record<string, any> | undefined;
+export function getPresetProperties(name: string): Record<string, any> | undefined;
+export function getPresetProperties(name: string): Record<string, any> | undefined {
+  switch (name) {
+    case "couchloop_meme_v1":
+      return {
+        // Title column is assumed to already exist; do not add another title property
+        style_tone: {
+          type: "select",
+          options: [
+            "mockumentary realism",
+            "inspirational sports parody",
+            "corporate mindfulness ad parody",
+            "deadpan therapy meme",
+            "self-aware comedy",
+            "awkward documentary style",
+            "motivational poster parody",
+            "therapy session aesthetic",
+          ],
+        },
+        setting_description: {
+          type: "select",
+          options: [
+            "office cubicle",
+            "therapy waiting room",
+            "bedroom at 2 a.m.",
+            "park bench at sunset",
+            "gym locker room",
+            "coffee shop corner",
+            "car interior",
+            "bathroom mirror",
+            "kitchen counter",
+            "couch at home",
+          ],
+        },
+        character_archetype: {
+          type: "select",
+          options: [
+            "anxious intern",
+            "stoic superhero",
+            "overworked founder",
+            "motivational coach",
+            "AI therapist avatar",
+            "exhausted parent",
+            "overthinking millennial",
+            "wellness influencer",
+            "corporate burnout",
+            "self-help skeptic",
+          ],
+        },
+        emotional_trigger: {
+          type: "select",
+          options: [
+            "breakup",
+            "anxiety spiral",
+            "burnout",
+            "self-doubt",
+            "motivation slump",
+            "overthinking loop",
+            "imposter syndrome",
+            "relationship stress",
+            "career uncertainty",
+            "social anxiety",
+          ],
+        },
+        emotional_theme: {
+          type: "select",
+          options: [
+            "self-forgiveness",
+            "resilience",
+            "inner-child reflection",
+            "letting go",
+            "optimism fatigue",
+            "boundary setting",
+            "self-compassion",
+            "growth mindset",
+            "emotional regulation",
+            "mindful acceptance",
+          ],
+        },
+        tone_direction: {
+          type: "select",
+          options: [
+            "sincere but ironic",
+            "calm but intense",
+            "awkwardly motivational",
+            "heartfelt yet absurd",
+            "gently sarcastic",
+            "warmly cynical",
+            "optimistically realistic",
+            "compassionately blunt",
+          ],
+        },
+        camera_style: {
+          type: "select",
+          options: [
+            "handheld zooms",
+            "tripod realism",
+            "selfie-style framing",
+            "slow push-in",
+            "reaction cutaway",
+            "documentary close-up",
+            "wide establishing shot",
+            "intimate medium shot",
+            "dutch angle tilt",
+            "mirror reflection",
+          ],
+        },
+        lighting_style: {
+          type: "select",
+          options: [
+            "daylight realism",
+            "warm introspective glow",
+            "fluorescent office tone",
+            "moody cinematic",
+            "golden hour soft",
+            "harsh bathroom lighting",
+            "cozy lamp warmth",
+            "blue screen glow",
+            "natural window light",
+            "dramatic shadow play",
+          ],
+        },
+        setup_text: { type: "rich_text" },
+        punchline_text: { type: "rich_text" },
+        Notes: { type: "rich_text" },
+        Usage_Count: { type: "number" },
+        Last_Used: { type: "date" },
+        Quality_Rating: {
+          type: "select",
+          options: [
+            "⭐ Needs Work",
+            "⭐⭐ Good",
+            "⭐⭐⭐ Great",
+            "⭐⭐⭐⭐ Excellent",
+            "⭐⭐⭐⭐⭐ Perfect",
+          ],
+        },
+        Active: { type: "checkbox" },
+      };
+    default:
+      return undefined;
+  }
+}

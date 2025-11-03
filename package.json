@@ -1,8 +1,16 @@
 {
   "name": "chatgpt-notion-middleware",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "description": "ChatGPT Action middleware for Notion API 2025-09-03 with intelligent schema conversion",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wisenbergg/chatgpt-notion-middleware.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
