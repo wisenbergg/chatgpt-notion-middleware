@@ -1,7 +1,7 @@
 openapi: 3.1.1
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.23
+  version: 5.3.26
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
 
