@@ -36,7 +36,7 @@ export const WritePayload = z
     // Optional request correlation id you can log/echo
     request_id: z.string().optional(),
   })
-  .strict()
+  .passthrough() // Allow extra fields from ChatGPT (aligns with OpenAPI additionalProperties: true)
   .superRefine((val: any, ctx: any) => {
     if (val.target === "db" && !val.database_id) {
       ctx.addIssue({
@@ -295,7 +295,8 @@ export type CreateDatabasePayload = z.infer<typeof CreateDatabasePayload>;
 // Update Database payload: add new properties and/or rename existing ones
 export const UpdateDatabasePayload = z
   .object({
-    database_id: z.string().min(1),
+    database_id: z.string().min(1).optional(),
+    database_url: z.string().min(1).optional(), // Accept database URL as alternative to ID
     // Add new properties: same definition style as create (simplified or raw)
     properties: z
       .record(
@@ -356,6 +357,15 @@ export const UpdateDatabasePayload = z
       )
       .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((val, ctx) => {
+    // Require either database_id OR database_url
+    if (!val.database_id && !val.database_url) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Either database_id or database_url is required",
+      });
+    }
+  });
 
 export type UpdateDatabasePayload = z.infer<typeof UpdateDatabasePayload>;

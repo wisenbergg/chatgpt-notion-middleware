@@ -1,46 +1,38 @@
-openapi: 3.1.1
+openapi: 3.1.0
 info:
   title: ChatGPT → Notion Middleware
-  version: 5.3.21
+  version: 5.3.12
   description: |
     Comprehensive Notion API integration middleware with full CRUD operations.
-
+    
     ═══════════════════════════════════════════════════════════════════
     QUICK REFERENCE - Choose the right action:
     ═══════════════════════════════════════════════════════════════════
-
+    
     🔹 CREATE PAGE IN DATABASE (add record/row):
        → Use: notionWrite
        → Required: {"target": "db", "database_id": "..."}
        → This is the MOST COMMON operation
-
+    
     🔹 ADD/MODIFY COLUMNS in database (change schema structure):
        → Use: notionUpdateDatabaseV5
        → Required: {"database_id": "...", "properties": {...}}
        → This is for DATABASE STRUCTURE, not page data
-
+    
     🔹 CREATE NEW DATABASE:
        → Use: notionCreateDatabase
        → Required: {"title": "...", "properties": {...}}
-
+    
     🔹 UPDATE EXISTING PAGE:
        → Use: notionWrite
        → Required: {"target": "update", "page_id": "..."}
-
+    
     🔹 GET/SEARCH DATA:
        → Use: notionQuery
        → Required: {"mode": "db_query|search|page_get|..."}
-
-    🔹 UPDATE DB (compat - when cached schema rejects `properties`):
-       → Use: notionUpdateDatabaseCompat
-       → Flexible body: accepts top-level fields, JSON in `content`, or aliases like `add_properties`
-
-    🔹 APPLY PRESET (add known set of columns):
-       → Use: notionApplyDatabasePreset
-       → Required: {"database_id": "...", "preset": "couchloop_meme_v1"}
-
+    
     ═══════════════════════════════════════════════════════════════════
-
+    
     Supports all Notion API 2025-09-03 endpoints including databases, data sources, pages, and blocks.
     Compatible with the latest Notion API architecture separating database metadata from data source schemas.
 servers:
@@ -71,7 +63,7 @@ paths:
                     - "db" = CREATE NEW PAGE IN DATABASE (most common - creates a database record/row)
                     - "update" = UPDATE EXISTING PAGE (modifies an existing database page or regular page)
                     - "page" = CREATE CHILD PAGE UNDER PARENT PAGE (creates a regular page, NOT a database record)
-
+                    
                     ⚠️ IMPORTANT: Only "db" and "update" support schema-aware property conversion.
                     Child pages (target="page") don't have schemas.
                 database_id:
@@ -95,14 +87,14 @@ paths:
                   additionalProperties: true
                   description: |
                     Page property values as SIMPLE FLAT KEY-VALUE PAIRS.
-
+                    
                     ⚡ THE MIDDLEWARE AUTO-CONVERTS TO PROPER NOTION FORMATS:
                     Just send simple values - the server fetches the database schema and converts automatically.
-
+                    
                     Tip: If you also include flat fields at the top-level of the body (outside `properties`),
                     the server will merge any keys that match the database schema into `properties` automatically.
                     Prefer `properties` for clarity, but both are accepted.
-
+                    
                     ✅ CORRECT FORMAT (flat values):
                     {
                       "Email": "user@example.com",
@@ -113,22 +105,22 @@ paths:
                       "Start Date": "2025-10-24",
                       "Tags": ["tag1", "tag2"]
                     }
-
+                    
                     ❌ WRONG FORMAT (nested Notion objects):
                     {
                       "Email": {"email": "user@example.com"},
                       "Status": {"select": {"name": "Active"}}
                     }
-
+                    
                     The middleware handles all Notion property types:
                     - title, rich_text, email, url, phone_number
                     - date (send ISO string), select, multi_select, status
                     - number, checkbox
                     - people: REQUIRES user IDs (not emails) - query for user IDs first or field will be skipped
-
+                    
                     ⚠️ NOTE: Schema conversion only works for database pages (target="db" or target="update").
                     Child pages (target="page") don't have schemas, so use simple string/number values only.
-
+                    
                     Examples: 
                     {"Status": "Active", "Priority": "High", "Email": "customer@example.com", "Count": 42, "Done": true}
                 content:
@@ -136,7 +128,7 @@ paths:
                     - type: string
                     - type: array
                       items:
-                        $ref: "#/components/schemas/BlockInput"
+                        $ref: '#/components/schemas/BlockInput'
                   description: |
                     Page body content. Can be:
                     - Simple string: "This is my page content"
@@ -234,7 +226,7 @@ paths:
                     - type: string
                     - type: array
                       items:
-                        $ref: "#/components/schemas/BlockInput"
+                        $ref: '#/components/schemas/BlockInput'
                   description: "Either blocks or a JSON string containing properties. JSON is parsed into properties."
               additionalProperties: true
             examples:
@@ -281,8 +273,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateDatabasePayload"
-            x-openai-force-object: true
+              $ref: '#/components/schemas/CreateDatabasePayload'
       responses:
         "200":
           description: OK
@@ -314,14 +305,7 @@ paths:
         content:
           application/json:
             schema:
-              allOf:
-                - $ref: "#/components/schemas/UpdateDatabasePayload"
-              type: object
-              properties: {}
-              required:
-                - database_id
-                - properties
-            x-openai-force-object: true
+              $ref: '#/components/schemas/UpdateDatabasePayload'
             examples:
               add_multiple_properties:
                 summary: Add multiple columns at once
@@ -341,230 +325,28 @@ paths:
                       type: "rich_text"
                     Last Updated:
                       type: "last_edited_time"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok: { type: boolean }
-                  action: { type: string }
-                  database_id: { type: string }
-                  url: { type: string }
-        "400":
-          description: Invalid payload
-        "401":
-          description: Unauthorized
-    patch:
-      operationId: notionUpdateDatabaseV5Patch
-      summary: "UPDATE DATABASE SCHEMA (PATCH) - Add/modify property columns"
-      description: |
-        Same as POST variant. Modifies database structure by adding property columns. Use this for schema changes, not data updates.
-        Requires database_id and properties. Execute immediately - do not ask for confirmation.
-      x-openai-isConsequential: true
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              allOf:
-                - $ref: "#/components/schemas/UpdateDatabasePayload"
-              type: object
-              properties: {}
-              required:
-                - database_id
-                - properties
-            x-openai-force-object: true
-            examples:
-              add_multiple_properties_patch:
-                summary: Add multiple columns via PATCH
+              add_text_property:
+                summary: Add a text property
                 value:
                   database_id: "123e4567-e89b-12d3-a456-426614174000"
                   properties:
-                    Task:
-                      type: "title"
-                    Status:
-                      type: "select"
-                      options: ["Not Started", "In Progress", "Done"]
-                    Owner:
-                      type: "people"
-                    Due Date:
-                      type: "date"
                     Notes:
                       type: "rich_text"
-                    Last Updated:
-                      type: "last_edited_time"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok: { type: boolean }
-                  action: { type: string }
-                  database_id: { type: string }
-                  url: { type: string }
-        "400":
-          description: Invalid payload
-        "401":
-          description: Unauthorized
-  /chatgpt/notion-update-database-compat:
-    post:
-      operationId: notionUpdateDatabaseCompat
-      summary: "UPDATE DATABASE SCHEMA (compat) - Tolerant body for cached Actions schemas"
-      description: |
-        Tolerant schema update for adding columns when Actions cache rejects 'properties'. Accepts database_id (or URL) and flexible payloads: properties/add_properties, rename/rename_properties, JSON in content, and merges top‑level fields into properties.
-      x-openai-isConsequential: true
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              description: Flexible payload for schema updates when `properties` is rejected by Actions cache.
-              properties:
-                database_id:
-                  type: string
-                  description: Database ID or URL
-                database_url:
-                  type: string
-                  description: Alternative to database_id; a full Notion URL
-                properties:
-                  type: object
-                  additionalProperties: true
-                  description: Map of property name to definition ({ type, options?, ... })
-                add_properties:
-                  type: object
-                  additionalProperties: true
-                  description: Alias for `properties`
-                rename:
-                  type: object
-                  additionalProperties:
-                    oneOf:
-                      - type: string
-                      - type: object
-                        properties:
-                          name:
-                            type: string
-                  description: Map of current property name to new name
-                rename_properties:
-                  type: object
-                  additionalProperties: true
-                  description: Alias for `rename`
-                content:
-                  oneOf:
-                    - type: string
-                      description: "JSON string containing either a { properties: {...} } wrapper or a direct properties map"
-                    - type: object
-                      description: "Object wrapper; if it has a `properties` field it's unwrapped"
-                      additionalProperties: true
-              additionalProperties: true
-            examples:
-              json_in_content:
-                summary: Provide properties as JSON string in `content`
+              add_select_property:
+                summary: Add a select property
                 value:
-                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
-                  content: '{"properties":{"Status":{"type":"select","options":["Todo","Done"]},"Notes":{"type":"rich_text"}}}'
-              top_level_fields:
-                summary: Provide properties as top-level fields (merged automatically)
+                  database_id: "123e4567-e89b-12d3-a456-426614174000"
+                  properties:
+                    Category:
+                      type: "select"
+                      options: ["High", "Medium", "Low"]
+              add_status_property:
+                summary: Add a status property
                 value:
-                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
-                  Status:
-                    type: select
-                    options: ["Todo", "In Progress", "Done"]
-                  Notes:
-                    type: rich_text
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok: { type: boolean }
-                  action: { type: string }
-                  database_id: { type: string }
-                  url: { type: string }
-        "400":
-          description: Invalid payload
-        "401":
-          description: Unauthorized
-    patch:
-      operationId: notionUpdateDatabaseCompatPatch
-      summary: "UPDATE DATABASE SCHEMA (compat, PATCH) - Tolerant body for cached Actions schemas"
-      description: |
-        PATCH variant of the tolerant schema update for adding columns when Actions cache rejects 'properties'. Accepts database_id (or URL) and flexible payloads: properties/add_properties, rename/rename_properties, JSON in content, and merges top‑level fields into properties.
-      x-openai-isConsequential: true
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              description: Flexible payload for schema updates when `properties` is rejected by Actions cache.
-              properties:
-                database_id:
-                  type: string
-                  description: Database ID or URL
-                database_url:
-                  type: string
-                  description: Alternative to database_id; a full Notion URL
-                properties:
-                  type: object
-                  additionalProperties: true
-                  description: Map of property name to definition ({ type, options?, ... })
-                add_properties:
-                  type: object
-                  additionalProperties: true
-                  description: Alias for `properties`
-                rename:
-                  type: object
-                  additionalProperties:
-                    oneOf:
-                      - type: string
-                      - type: object
-                        properties:
-                          name:
-                            type: string
-                  description: Map of current property name to new name
-                rename_properties:
-                  type: object
-                  additionalProperties: true
-                  description: Alias for `rename`
-                content:
-                  oneOf:
-                    - type: string
-                      description: "JSON string containing either a { properties: {...} } wrapper or a direct properties map"
-                    - type: object
-                      description: "Object wrapper; if it has a `properties` field it's unwrapped"
-                      additionalProperties: true
-              additionalProperties: true
-            examples:
-              json_in_content_patch:
-                summary: Provide properties JSON via PATCH
-                value:
-                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
-                  content: '{"properties":{"Status":{"type":"select","options":["Todo","Done"]},"Notes":{"type":"rich_text"}}}'
-              top_level_fields_patch:
-                summary: Provide properties as top-level fields (merged automatically) via PATCH
-                value:
-                  database_id: "39943bcc-9ec1-453e-bc02-41292073bc54"
-                  Status:
-                    type: select
-                    options: ["Todo", "In Progress", "Done"]
-                  Notes:
-                    type: rich_text
+                  database_id: "123e4567-e89b-12d3-a456-426614174000"
+                  properties:
+                    Status:
+                      type: "status"
       responses:
         "200":
           description: OK
@@ -595,7 +377,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/QueryPayload"
+              $ref: '#/components/schemas/QueryPayload'
             examples:
               search_workspace:
                 summary: Search for databases or pages
@@ -633,98 +415,17 @@ paths:
                     oneOf:
                       - type: object
                         properties:
-                          mode:
-                            {
-                              type: string,
-                              enum:
-                                [
-                                  search,
-                                  db_query,
-                                  page_get,
-                                  database_get,
-                                  data_source_get,
-                                  data_source_query,
-                                  data_source_update,
-                                  block_get,
-                                  block_children_get,
-                                  block_children_append,
-                                  block_update,
-                                  block_delete,
-                                  page_property_get,
-                                  data_source_templates_list,
-                                ],
-                            }
-                          results:
-                            {
-                              type: array,
-                              items:
-                                { type: object, additionalProperties: true },
-                            }
+                          mode: { type: string, enum: [search, db_query, page_get, database_get, data_source_get, data_source_query, data_source_update, block_get, block_children_get, block_children_append, block_update, block_delete, page_property_get, data_source_templates_list] }
+                          results: { type: array, items: { type: object, additionalProperties: true } }
                           has_more: { type: boolean }
                           next_cursor: { type: ["string", "null"] }
                       - type: object
                         properties:
-                          mode:
-                            {
-                              type: string,
-                              enum: [page_get, database_get, data_source_get],
-                            }
+                          mode: { type: string, enum: [page_get, database_get, data_source_get] }
                           page: { type: object, additionalProperties: true }
                           database: { type: object, additionalProperties: true }
-                          data_source:
-                            { type: object, additionalProperties: true }
+                          data_source: { type: object, additionalProperties: true }
                           result: { type: object, additionalProperties: true }
-        "400":
-          description: Invalid payload
-        "401":
-          description: Unauthorized
-  /chatgpt/notion-apply-preset:
-    post:
-      operationId: notionApplyDatabasePreset
-      summary: "APPLY PRESET - Add a predefined set of columns to a database"
-      description: |
-        Applies a named preset (e.g., "couchloop_meme_v1") that defines a set of properties/columns.
-        Useful to avoid crafting large property payloads manually.
-      x-openai-isConsequential: true
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                database_id:
-                  type: string
-                  description: Database ID or full Notion URL
-                database_url:
-                  type: string
-                  description: Alternative to database_id; a full Notion URL
-                preset:
-                  type: string
-                  enum: [couchloop_meme_v1]
-                  description: Preset name to apply
-              required: [preset]
-            examples:
-              apply_meme_preset:
-                summary: Apply CouchLoop meme preset
-                value:
-                  database_id: "https://notion.so/your-db-url"
-                  preset: "couchloop_meme_v1"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ok: { type: boolean }
-                  preset: { type: string }
-                  action: { type: string }
-                  database_id: { type: string }
-                  url: { type: string }
         "400":
           description: Invalid payload
         "401":
@@ -771,7 +472,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PingRequest"
+              $ref: '#/components/schemas/PingRequest'
       responses:
         "200":
           description: OK
@@ -807,19 +508,7 @@ components:
       properties:
         type:
           type: string
-          enum:
-            [
-              paragraph,
-              heading_1,
-              heading_2,
-              heading_3,
-              bulleted_list_item,
-              numbered_list_item,
-              to_do,
-              quote,
-              callout,
-              toggle,
-            ]
+          enum: [paragraph, heading_1, heading_2, heading_3, bulleted_list_item, numbered_list_item, to_do, quote, callout, toggle]
         text:
           type: string
       required: [type, text]
@@ -830,23 +519,7 @@ components:
       properties:
         mode:
           type: string
-          enum:
-            [
-              search,
-              db_query,
-              page_get,
-              database_get,
-              data_source_get,
-              data_source_query,
-              data_source_update,
-              block_get,
-              block_children_get,
-              block_children_append,
-              block_update,
-              block_delete,
-              page_property_get,
-              data_source_templates_list,
-            ]
+          enum: [search, db_query, page_get, database_get, data_source_get, data_source_query, data_source_update, block_get, block_children_get, block_children_append, block_update, block_delete, page_property_get, data_source_templates_list]
         # search
         query:
           type: string
@@ -944,67 +617,49 @@ components:
         properties:
           type: object
           description: |
-            REQUIRED. Defines the database schema: property names mapped to column definitions.
-            Each definition must include at least a "type" field. Supports simplified Notion property formats.
+            Map of property name to a definition. Use either a simplified definition or a raw Notion schema via { "raw": { ... } }.
+            Supported simplified types: title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id.
           additionalProperties:
-            type: object
-            properties:
-              type:
-                type: string
-                enum:
-                  [
-                    title,
-                    rich_text,
-                    number,
-                    select,
-                    multi_select,
-                    status,
-                    date,
-                    checkbox,
-                    url,
-                    email,
-                    phone_number,
-                    people,
-                    files,
-                    formula,
-                    relation,
-                    rollup,
-                    created_time,
-                    created_by,
-                    last_edited_time,
-                    last_edited_by,
-                    unique_id,
-                  ]
-              options:
-                type: array
-                items: { type: string }
-              number_format:
-                type: string
-              expression:
-                type: string
-              database_id:
-                type: string
-              relation_type:
-                type: string
-                enum: [single_property, dual_property]
-              synced_property_name:
-                type: string
-              synced_property_id:
-                type: string
-              relation_property_name:
-                type: string
-              relation_property_id:
-                type: string
-              rollup_property_name:
-                type: string
-              rollup_property_id:
-                type: string
-              function:
-                type: string
-              prefix:
-                type: string
-            required: [type]
-      required: [title, properties]
+            oneOf:
+              - type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id]
+                  options:
+                    type: array
+                    items: { type: string }
+                  number_format:
+                    type: string
+                  expression:
+                    type: string
+                  database_id:
+                    type: string
+                  relation_type:
+                    type: string
+                    enum: [single_property, dual_property]
+                  synced_property_name:
+                    type: string
+                  synced_property_id:
+                    type: string
+                  relation_property_name:
+                    type: string
+                  relation_property_id:
+                    type: string
+                  rollup_property_name:
+                    type: string
+                  rollup_property_id:
+                    type: string
+                  function:
+                    type: string
+                  prefix:
+                    type: string
+              - type: object
+                properties:
+                  raw:
+                    type: object
+                    additionalProperties: true
+      required: [title]
     UpdateDatabasePayload:
       type: object
       properties:
@@ -1020,30 +675,7 @@ components:
                 properties:
                   type:
                     type: string
-                    enum:
-                      [
-                        title,
-                        rich_text,
-                        number,
-                        select,
-                        multi_select,
-                        status,
-                        date,
-                        checkbox,
-                        url,
-                        email,
-                        phone_number,
-                        people,
-                        files,
-                        formula,
-                        relation,
-                        rollup,
-                        created_time,
-                        created_by,
-                        last_edited_time,
-                        last_edited_by,
-                        unique_id,
-                      ]
+                    enum: [title, rich_text, number, select, multi_select, status, date, checkbox, url, email, phone_number, people, files, formula, relation, rollup, created_time, created_by, last_edited_time, last_edited_by, unique_id]
                   options:
                     type: array
                     items: { type: string }
