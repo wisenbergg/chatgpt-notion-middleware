@@ -28,3 +28,14 @@ jobs:
 
       - name: Validate OpenAPI file exists
         run: test -f openapi.yaml
+
+      - name: Deploy to Vercel (prod)
+        uses: amondnet/vercel-action@v25
+        continue-on-error: true
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: .
+          vercel-args: '--prod'
