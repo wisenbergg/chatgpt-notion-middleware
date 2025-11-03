@@ -3,6 +3,9 @@ import type { WritePayload, QueryPayload, CreateDatabasePayload, UpdateDatabaseP
 
 // Lazy initialization - create client only when first needed so environment is loaded
 let notion: Client | null = null;
+
+// Helper to access low-level request method (exists at runtime but not in TypeScript types)
+// We use this for endpoints not yet exposed in the official SDK (like data_sources PATCH)
 function getNotionClient(): Client {
   if (!notion) {
     console.log('🔑 Initializing Notion client with token:', process.env.NOTION_TOKEN?.slice(0, 10) + '...');
@@ -13,6 +16,12 @@ function getNotionClient(): Client {
     });
   }
   return notion;
+}
+
+// Type-safe wrapper for low-level request() method
+// The SDK exposes this method at runtime but TypeScript types don't include it properly
+function notionRequest(opts: { path: string; method: string; body?: any; query?: any }): Promise<any> {
+  return (getNotionClient() as any).request(opts);
 }// Local helper to normalize Notion IDs from raw IDs or URLs
 function extractNotionId(input?: string | null) {
   if (!input) return undefined as string | undefined;
@@ -116,7 +125,7 @@ async function getDatabaseSchema(databaseId: string): Promise<Record<string, any
   // In API 2025-09-03, properties are in data_sources
   if (database.data_sources && database.data_sources.length > 0) {
     const dataSourceId = extractNotionId(database.data_sources[0].id);
-    const dataSource: any = await (getNotionClient() as any).request({
+    const dataSource = await notionRequest({
       method: 'get',
       path: `data_sources/${dataSourceId}`
     });
@@ -361,7 +370,7 @@ export async function handleWrite(payload: WritePayload) {
     } catch {}
     
     // Use notion.request for 2025-09-03 API with data_source_id
-    const res: any = await (getNotionClient() as any).request({
+    const res = await notionRequest({
       path: 'pages',
       method: 'post',
       body: {
@@ -478,7 +487,7 @@ export async function handleQuery(payload: QueryPayload) {
     let has_more = true;
     do {
       // Use data source query endpoint
-      const res: any = await (getNotionClient() as any).request({
+      const res = await notionRequest({
         path: `data_sources/${dataSourceId}/query`,
         method: 'post',
         body: {
@@ -516,7 +525,7 @@ export async function handleQuery(payload: QueryPayload) {
     // Fetch the first data source to get the properties
     if (res.data_sources && res.data_sources.length > 0) {
       const dataSourceId = extractNotionId(res.data_sources[0].id);
-      const dataSource = await (getNotionClient() as any).request({
+      const dataSource = await notionRequest({
         method: 'get',
         path: `data_sources/${dataSourceId}`
       });
@@ -533,7 +542,7 @@ export async function handleQuery(payload: QueryPayload) {
   }
 
   if (payload.mode === "data_source_get") {
-    const res = await (getNotionClient() as any).request({
+    const res = await notionRequest({
       method: 'get',
       path: `data_sources/${extractNotionId((payload as any).data_source_id!)}`
     });
@@ -550,7 +559,7 @@ export async function handleQuery(payload: QueryPayload) {
     if (payload.page_size) queryBody.page_size = payload.page_size;
     if ((payload as any).result_type) queryBody.result_type = (payload as any).result_type;
     
-    const res = await (getNotionClient() as any).request({
+    const res = await notionRequest({
       method: 'post',
       path: `data_sources/${dataSourceId}/query`,
       body: queryBody
@@ -816,7 +825,7 @@ export async function handleQuery(payload: QueryPayload) {
       const dataSourceId = await getPrimaryDataSourceId(databaseId);
       
       // Get current data source to understand existing properties
-      const currentDataSource: any = await (getNotionClient() as any).request({
+      const currentDataSource = await notionRequest({
         method: 'GET',
         path: `data_sources/${dataSourceId}`
       });
@@ -834,7 +843,7 @@ export async function handleQuery(payload: QueryPayload) {
 
       console.log(`📊 Updating data source ${dataSourceId} with renamed properties`);
       
-      const res: any = await (getNotionClient() as any).request({
+      const res = await notionRequest({
         method: 'PATCH',
         path: `data_sources/${dataSourceId}`,
         body: {
