@@ -482,6 +482,28 @@ export async function handleQuery(payload: QueryPayload) {
     const databaseId = (payload as any).database_id!;
     const dataSourceId = await getPrimaryDataSourceId(databaseId);
     
+    // Optional free-text query across title/rich_text properties
+    const queryString = (payload as any).query as string | undefined;
+    let combinedFilter = (payload as any).filter;
+    if (typeof queryString === 'string' && queryString.trim()) {
+      try {
+        const dbSchema = await getDatabaseSchema(databaseId);
+        const textProps = Object.keys(dbSchema)
+          .filter((k) => dbSchema[k]?.type === 'title' || dbSchema[k]?.type === 'rich_text')
+          .slice(0, 5); // limit to avoid huge OR filters
+        if (textProps.length) {
+          const orFilters = textProps.map((name) => ({
+            property: name,
+            [dbSchema[name].type]: { contains: queryString }
+          }));
+          const textFilter: any = { or: orFilters };
+          combinedFilter = combinedFilter ? { and: [combinedFilter, textFilter] } : textFilter;
+        }
+      } catch (e) {
+        console.warn('⚠️  Failed building text filter from schema:', (e as any)?.message);
+      }
+    }
+    
     const results: any[] = [];
     let next = startCursor;
     let has_more = true;
@@ -491,10 +513,12 @@ export async function handleQuery(payload: QueryPayload) {
         path: `data_sources/${dataSourceId}/query`,
         method: 'post',
         body: {
-          filter: (payload as any).filter,
+          filter: combinedFilter,
           sorts: (payload as any).sorts,
           page_size: pageSize,
           start_cursor: next,
+          // Reduce payload size when caller provides explicit property list
+          filter_properties: (payload as any).filter_properties,
         }
       });
       
