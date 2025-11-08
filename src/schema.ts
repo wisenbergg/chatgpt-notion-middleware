@@ -81,7 +81,7 @@ export const QueryPayload = z
     ]),
     // search
     query: z.string().optional(),
-    object: z.enum(["page", "database"]).default("page").optional(),
+    object: z.enum(["page", "database", "data_source"]).default("page").optional(),
     // db_query and data_source_query
     database_id: z.string().optional(),
     database_url: z.string().optional(), // Alternative to database_id; accepts full Notion URL

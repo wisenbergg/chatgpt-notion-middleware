@@ -415,13 +415,14 @@ paths:
                 summary: Add relation and rollup properties (CORRECT FORMAT)
                 description: |
                   CRITICAL: Relations use "dual_property": {} or "single_property": {}, NOT "type": "dual_property"
+                  Use "data_source_id" (Notion API 2025-09-03), NOT "database_id" (auto-converted if needed)
                   Rollups reference existing relation properties by name.
                 value:
                   database_id: "123e4567-e89b-12d3-a456-426614174000"
                   properties:
                     Related Tasks:
                       relation:
-                        database_id: "target-database-id-here"
+                        data_source_id: "target-database-id-here"
                         dual_property: {}
                     Task Count:
                       rollup:
@@ -1040,8 +1041,8 @@ components:
           description: Search query string
         object:
           type: string
-          enum: [page, data_source]
-          description: "Use 'data_source' to search for databases (changed from 'database' in API 2025-09-03)"
+          enum: [page, database, data_source]
+          description: "Filter by object type. Use 'data_source' for databases (API 2025-09-03). 'database' also supported for compatibility."
         # db_query and data_source_query
         database_id:
           type: string

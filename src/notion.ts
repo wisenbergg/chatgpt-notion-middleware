@@ -41,19 +41,13 @@ function extractNotionId(input?: string | null) {
 async function resolveDataSourceId(payload: any): Promise<string | undefined> {
   // Prefer explicit data_source_id first
   let dataSourceId = payload.data_source_id ? extractNotionId(payload.data_source_id) : undefined;
-  
-  // Fallback: lookup from database_id
+
+  // Fallback: lookup from database_id using the same logic as getPrimaryDataSourceId
   if (!dataSourceId && payload.database_id) {
     const dbId = extractNotionId(payload.database_id);
     if (dbId) {
       try {
-        console.log(`🔍 Auto-resolving: database_id → data_source_id...`);
-        const db: any = await getNotionClient().databases.retrieve({ database_id: dbId });
-        
-        // In Notion API 2025-09-03, data_source_id might be null for some databases
-        // In that case, the database_id IS the data_source_id
-        dataSourceId = db.data_source_id || dbId;
-        console.log(`✅ Resolved data_source_id: ${dataSourceId}`);
+        dataSourceId = await getPrimaryDataSourceId(dbId);
       } catch (err: any) {
         console.warn(`⚠️  Failed to resolve data_source_id from database_id: ${err.message}`);
         // If database lookup fails, fall back to using database_id as data_source_id
@@ -61,7 +55,7 @@ async function resolveDataSourceId(payload: any): Promise<string | undefined> {
       }
     }
   }
-  
+
   return dataSourceId;
 }
 

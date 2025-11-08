@@ -4,11 +4,21 @@
 
 ### Relations Format
 ```json
-// ✅ CORRECT
+// ✅ CORRECT (Notion API 2025-09-03)
 {
   "Related Tasks": {
     "relation": {
-      "database_id": "uuid-here",
+      "data_source_id": "uuid-here",
+      "dual_property": {}
+    }
+  }
+}
+
+// ⚠️ ALSO WORKS (auto-converted by middleware)
+{
+  "Related Tasks": {
+    "relation": {
+      "database_id": "uuid-here",  // Auto-converted to data_source_id
       "dual_property": {}
     }
   }
@@ -138,7 +148,7 @@ Common formula functions:
 ```json
 {
   "relation": {
-    "database_id": "target-database-uuid",
+    "data_source_id": "target-database-uuid",
     "dual_property": {}
   }
 }
@@ -148,7 +158,7 @@ Common formula functions:
 ```json
 {
   "relation": {
-    "database_id": "target-database-uuid",
+    "data_source_id": "target-database-uuid",
     "single_property": {}
   }
 }
@@ -244,7 +254,7 @@ POST /chatgpt/notion-update-database
   "properties": {
     "Related Items": {
       "relation": {
-        "database_id": "target-db-uuid",
+        "data_source_id": "target-db-uuid",
         "dual_property": {}
       }
     },
