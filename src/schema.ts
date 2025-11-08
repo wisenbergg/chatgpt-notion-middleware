@@ -327,7 +327,7 @@ export const UpdateDatabasePayload = z
                 "last_edited_time",
                 "last_edited_by",
                 "unique_id",
-              ]),
+              ]).optional(), // Make type optional to accept native Notion format
               options: z.array(z.string()).optional(),
               number_format: z.string().optional(),
               expression: z.string().optional(),

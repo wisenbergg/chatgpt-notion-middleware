@@ -604,6 +604,26 @@ app.post("/chatgpt/notion-update-database", async (req: Request, res: Response) 
     if (inferred) input.database_id = inferred;
   }
 
+  // Auto-fix common ChatGPT mistakes in relation properties
+  // ChatGPT often sends {"relation": {"database_id": "...", "type": "dual_property"}}
+  // But correct format is {"relation": {"database_id": "...", "dual_property": {}}}
+  if (input.properties && typeof input.properties === "object") {
+    for (const [propName, propDef] of Object.entries(input.properties)) {
+      if (propDef && typeof propDef === "object" && (propDef as any).relation) {
+        const rel = (propDef as any).relation;
+        if (rel.type === "dual_property" && !rel.dual_property) {
+          console.log(`[UPDATE-DB] Auto-fixing relation format for "${propName}": type="dual_property" -> dual_property={}`);
+          rel.dual_property = {};
+          delete rel.type;
+        } else if (rel.type === "single_property" && !rel.single_property) {
+          console.log(`[UPDATE-DB] Auto-fixing relation format for "${propName}": type="single_property" -> single_property={}`);
+          rel.single_property = {};
+          delete rel.type;
+        }
+      }
+    }
+  }
+
   // Tolerant aliases for backward-compat and model quirks
   // - allow legacy add_properties -> properties
   // - allow nested content.properties -> properties
@@ -664,6 +684,26 @@ app.patch("/chatgpt/notion-update-database", async (req: Request, res: Response)
   } else if (input.database_url) {
     const inferred = extractNotionId(input.database_url);
     if (inferred) input.database_id = inferred;
+  }
+
+  // Auto-fix common ChatGPT mistakes in relation properties
+  // ChatGPT often sends {"relation": {"database_id": "...", "type": "dual_property"}}
+  // But correct format is {"relation": {"database_id": "...", "dual_property": {}}}
+  if (input.properties && typeof input.properties === "object") {
+    for (const [propName, propDef] of Object.entries(input.properties)) {
+      if (propDef && typeof propDef === "object" && (propDef as any).relation) {
+        const rel = (propDef as any).relation;
+        if (rel.type === "dual_property" && !rel.dual_property) {
+          console.log(`[UPDATE-DB] Auto-fixing relation format for "${propName}": type="dual_property" -> dual_property={}`);
+          rel.dual_property = {};
+          delete rel.type;
+        } else if (rel.type === "single_property" && !rel.single_property) {
+          console.log(`[UPDATE-DB] Auto-fixing relation format for "${propName}": type="single_property" -> single_property={}`);
+          rel.single_property = {};
+          delete rel.type;
+        }
+      }
+    }
   }
 
   // Tolerant aliases for backward-compat and model quirks
@@ -788,6 +828,24 @@ app.post("/chatgpt/notion-update-database-compat", async (req: Request, res: Res
     }
   } catch {}
 
+  // Auto-fix common ChatGPT mistakes in relation properties
+  if (input.properties && typeof input.properties === "object") {
+    for (const [propName, propDef] of Object.entries(input.properties)) {
+      if (propDef && typeof propDef === "object" && (propDef as any).relation) {
+        const rel = (propDef as any).relation;
+        if (rel.type === "dual_property" && !rel.dual_property) {
+          console.log(`[UPDATE-DB-COMPAT] Auto-fixing relation format for "${propName}": type="dual_property" -> dual_property={}`);
+          rel.dual_property = {};
+          delete rel.type;
+        } else if (rel.type === "single_property" && !rel.single_property) {
+          console.log(`[UPDATE-DB-COMPAT] Auto-fixing relation format for "${propName}": type="single_property" -> single_property={}`);
+          rel.single_property = {};
+          delete rel.type;
+        }
+      }
+    }
+  }
+
   // Validate against strict schema after normalization
   const parse = UpdateDatabasePayloadSchema.safeParse(input);
   if (!parse.success) {
@@ -888,6 +946,24 @@ app.patch("/chatgpt/notion-update-database-compat", async (req: Request, res: Re
       delete input.rename_properties;
     }
   } catch {}
+
+  // Auto-fix common ChatGPT mistakes in relation properties
+  if (input.properties && typeof input.properties === "object") {
+    for (const [propName, propDef] of Object.entries(input.properties)) {
+      if (propDef && typeof propDef === "object" && (propDef as any).relation) {
+        const rel = (propDef as any).relation;
+        if (rel.type === "dual_property" && !rel.dual_property) {
+          console.log(`[UPDATE-DB-COMPAT][PATCH] Auto-fixing relation format for "${propName}": type="dual_property" -> dual_property={}`);
+          rel.dual_property = {};
+          delete rel.type;
+        } else if (rel.type === "single_property" && !rel.single_property) {
+          console.log(`[UPDATE-DB-COMPAT][PATCH] Auto-fixing relation format for "${propName}": type="single_property" -> single_property={}`);
+          rel.single_property = {};
+          delete rel.type;
+        }
+      }
+    }
+  }
 
   // Validate against strict schema after normalization
   const parse = UpdateDatabasePayloadSchema.safeParse(input);

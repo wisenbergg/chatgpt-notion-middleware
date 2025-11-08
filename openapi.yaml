@@ -411,6 +411,28 @@ paths:
                     Monthly Burn:
                       formula:
                         expression: "prop(\"OpEx\") - prop(\"Revenue\")"
+              add_relations_and_rollups:
+                summary: Add relation and rollup properties (CORRECT FORMAT)
+                description: |
+                  CRITICAL: Relations use "dual_property": {} or "single_property": {}, NOT "type": "dual_property"
+                  Rollups reference existing relation properties by name.
+                value:
+                  database_id: "123e4567-e89b-12d3-a456-426614174000"
+                  properties:
+                    Related Tasks:
+                      relation:
+                        database_id: "target-database-id-here"
+                        dual_property: {}
+                    Task Count:
+                      rollup:
+                        relation_property_name: "Related Tasks"
+                        rollup_property_name: "Name"
+                        function: "count"
+                    Total Revenue:
+                      rollup:
+                        relation_property_name: "Related Tasks"
+                        rollup_property_name: "Amount"
+                        function: "sum"
       responses:
         "200":
           description: OK
