@@ -635,10 +635,38 @@ export async function handleQuery(payload: QueryPayload) {
   throw new Error("Unsupported query mode");
 }
 
+/**
+ * Detects if a property definition is already in Notion's native format
+ * vs our simplified format that needs conversion
+ */
+function isNativeNotionPropertyFormat(def: any): boolean {
+  if (!def || typeof def !== 'object') return false;
+
+  // Check for native Notion property type wrappers (these are the actual property type objects)
+  const nativeTypes = [
+    'title', 'rich_text', 'number', 'select', 'multi_select',
+    'status', 'date', 'checkbox', 'url', 'email', 'phone_number',
+    'people', 'files', 'formula', 'relation', 'rollup',
+    'created_time', 'created_by', 'last_edited_time', 'last_edited_by', 'unique_id'
+  ];
+
+  // If any of these keys exist at top level (not as 'type' value), it's native format
+  // Native format: { number: { format: "dollar" } }
+  // Simplified format: { type: "number", number_format: "dollar" }
+  return nativeTypes.some(type => type in def && type !== 'type');
+}
+
   function toDatabaseProperty(def: { type?: string; options?: string[]; number_format?: string; expression?: string; database_id?: string; relation_type?: string; synced_property_name?: string; synced_property_id?: string; relation_property_name?: string; relation_property_id?: string; rollup_property_name?: string; rollup_property_id?: string; function?: string; prefix?: string; raw?: any }) {
     if ((def as any).raw) {
       return (def as any).raw;
     }
+
+    // NEW: If already in native Notion format, return as-is
+    if (isNativeNotionPropertyFormat(def)) {
+      console.log('✅ Native Notion property format detected, using as-is');
+      return def;
+    }
+
     const t = def.type;
     switch (t) {
       case "title":

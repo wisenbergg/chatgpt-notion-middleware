@@ -459,14 +459,24 @@ app.post("/chatgpt/notion-query", async (req: Request, res: Response) => {
   if (input.database_id) {
     const resolved = resolveDatabaseAlias(input.database_id);
     if (resolved) input.database_id = resolved;
+  } else if (input.database_url) {
+    const resolved = resolveDatabaseAlias(input.database_url);
+    if (resolved) input.database_id = resolved;
   }
-  
+
+  // Normalize IDs from URLs or raw IDs
   if (input.database_id) {
     const inferred = extractNotionId(input.database_id);
+    if (inferred) input.database_id = inferred;
+  } else if (input.database_url) {
+    const inferred = extractNotionId(input.database_url);
     if (inferred) input.database_id = inferred;
   }
   if (input.page_id) {
     const inferred = extractNotionId(input.page_id);
+    if (inferred) input.page_id = inferred;
+  } else if (input.page_url) {
+    const inferred = extractNotionId(input.page_url);
     if (inferred) input.page_id = inferred;
   }
   // Allow NOTION_DB_URL/NOTION_DB_ID env fallback for mode=db_query
@@ -495,12 +505,29 @@ app.post("/chatgpt/notion-query", async (req: Request, res: Response) => {
 // Legacy/alias query paths for compatibility
 app.post(["/notionQuery", "/chatgpt/notionQuery"], async (req: Request, res: Response) => {
   const input = { ...(req.body ?? {}) } as any;
+
+  // Resolve database alias
+  if (input.database_id) {
+    const resolved = resolveDatabaseAlias(input.database_id);
+    if (resolved) input.database_id = resolved;
+  } else if (input.database_url) {
+    const resolved = resolveDatabaseAlias(input.database_url);
+    if (resolved) input.database_id = resolved;
+  }
+
+  // Normalize IDs
   if (input.database_id) {
     const inferred = extractNotionId(input.database_id);
+    if (inferred) input.database_id = inferred;
+  } else if (input.database_url) {
+    const inferred = extractNotionId(input.database_url);
     if (inferred) input.database_id = inferred;
   }
   if (input.page_id) {
     const inferred = extractNotionId(input.page_id);
+    if (inferred) input.page_id = inferred;
+  } else if (input.page_url) {
+    const inferred = extractNotionId(input.page_url);
     if (inferred) input.page_id = inferred;
   }
   if (input.mode === "db_query" && !input.database_id) {

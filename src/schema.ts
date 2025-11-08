@@ -84,6 +84,7 @@ export const QueryPayload = z
     object: z.enum(["page", "database"]).default("page").optional(),
     // db_query and data_source_query
     database_id: z.string().optional(),
+    database_url: z.string().optional(), // Alternative to database_id; accepts full Notion URL
     filter: z.record(z.any()).optional(),
     sorts: z.array(z.record(z.any())).optional(),
     page_size: z.number().int().min(1).max(100).optional(),
@@ -92,6 +93,7 @@ export const QueryPayload = z
     max_results: z.number().int().min(1).max(500).optional(),
     // page_get and page_property_get
     page_id: z.string().optional(),
+    page_url: z.string().optional(), // Alternative to page_id; accepts full Notion URL
     property_id: z.string().optional(),
     // data_source_get, data_source_query, data_source_update, and data_source_templates_list
     data_source_id: z.string().optional(),
